@@ -23,7 +23,7 @@
 # $URL$
 # $Id$
 
-require 'uuidtools/lib/uuidtools'
+require 'uuidtools'
 
 class Lock < ActiveRecord::Base
   after_save :destroy_expired_locks

@@ -27,7 +27,7 @@ require 'constants'
 require 'errors'
 require 'rexml/document'
 require 'set'
-require 'uuidtools/lib/uuidtools'
+require 'uuidtools'
 require 'web_dav_response'
 
 
