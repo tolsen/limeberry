@@ -1282,10 +1282,15 @@ module ActiveRecord
 
         def create_extension_module(association_id, extension)
           extension_module_name = "#{self.to_s}#{association_id.to_s.camelize}AssociationExtension"
-
-          silence_warnings do
-            Object.const_set(extension_module_name, Module.new(&extension))
+          
+          #
+          # patch : http://dev.rubyonrails.org/ticket/3460
+          # 
+          nesting = extension_module_name.split /::/
+          container_module = nesting[0..-2].inject(Object) do | outer, inner |
+            outer.const_get(inner)
           end
+          container_module.const_set( nesting.last, Module.new(&extension))
           
           extension_module_name.constantize
         end

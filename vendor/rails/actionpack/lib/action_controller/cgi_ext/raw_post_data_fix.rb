@@ -72,11 +72,14 @@ class CGI #:nodoc:
 
       def read_body(content_length)
         stdinput.binmode if stdinput.respond_to?(:binmode)
-        content = stdinput.read(content_length) || ''
-        # Fix for Safari Ajax postings that always append \000
-        content.chop! if content[-1] == 0
-        content.gsub!(/&_=$/, '')
-        env_table['RAW_POST_DATA'] = content.freeze
+        # The following code has been commented because it leads to huge memory consumption in put on large files
+        # instead of using raw_post, we may as well read the stream request.cgi.stdinput
+        
+        # content = stdinput.read(content_length) || ''
+#         # Fix for Safari Ajax postings that always append \000
+#         content.chop! if content[-1] == 0
+#         content.gsub!(/&_=$/, '')
+#         env_table['RAW_POST_DATA'] = content.freeze
       end
 
       def read_params(method, content_length)

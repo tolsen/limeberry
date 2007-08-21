@@ -29,7 +29,7 @@ module ActiveRecord
 
     def create_with_timestamps #:nodoc:
       if record_timestamps
-        t = self.class.default_timezone == :utc ? Time.now.utc : Time.now
+        t = Time.now
         write_attribute('created_at', t) if respond_to?(:created_at) && created_at.nil?
         write_attribute('created_on', t) if respond_to?(:created_on) && created_on.nil?
 
@@ -41,7 +41,7 @@ module ActiveRecord
 
     def update_with_timestamps #:nodoc:
       if record_timestamps
-        t = self.class.default_timezone == :utc ? Time.now.utc : Time.now
+        t = Time.now
         write_attribute('updated_at', t) if respond_to?(:updated_at)
         write_attribute('updated_on', t) if respond_to?(:updated_on)
       end

@@ -51,6 +51,8 @@ module ActiveRecord
       end
       
       def quoted_date(value)
+        # Time#utc modifies the receiver. is that ok?
+        value.utc if ActiveRecord::Base.default_timezone == :utc
         value.strftime("%Y-%m-%d %H:%M:%S")
       end
     end

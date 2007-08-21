@@ -591,31 +591,6 @@ class BasicsTest < Test::Unit::TestCase
     end
   end
 
-  # Oracle, SQLServer, and Sybase do not have a TIME datatype.
-  unless current_adapter?(:SQLServerAdapter, :OracleAdapter, :SybaseAdapter)
-    def test_utc_as_time_zone
-      Topic.default_timezone = :utc
-      attributes = { "bonus_time" => "5:42:00AM" }
-      topic = Topic.find(1)
-      topic.attributes = attributes
-      assert_equal Time.utc(2000, 1, 1, 5, 42, 0), topic.bonus_time
-      Topic.default_timezone = :local
-    end
-
-    def test_utc_as_time_zone_and_new
-      Topic.default_timezone = :utc
-      attributes = { "bonus_time(1i)"=>"2000",
-                     "bonus_time(2i)"=>"1",
-                     "bonus_time(3i)"=>"1",
-                     "bonus_time(4i)"=>"10",
-                     "bonus_time(5i)"=>"35",
-                     "bonus_time(6i)"=>"50" }
-      topic = Topic.new(attributes)
-      assert_equal Time.utc(2000, 1, 1, 10, 35, 50), topic.bonus_time
-      Topic.default_timezone = :local
-    end
-  end
-
   def test_default_values_on_empty_strings
     topic = Topic.new
     topic.approved  = nil

@@ -257,14 +257,8 @@ module ActionController #:nodoc:
       require 'stringio'
 
       sio = StringIO.new
-
-      begin 
-        $stdout = sio
-        body.call
-      ensure
-        $stdout = STDOUT
-      end
-
+      body.call(self, sio)
+      
       sio.rewind
       sio.read
     end
