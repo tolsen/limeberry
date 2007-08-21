@@ -1,0 +1,5 @@
+Automatic scripts for benchmarking, profiling and code coverage
+Usage:
+./benchmarker.rb <FILENAME FROM RAILS_ROOT> <FUNCTION NAME> <NUM-TIMES>
+./profiler.rb <FILENAME FROM RAILS_ROOT>
+./coverage.rb <LIST OF FILENAMES FROM RAILS_ROOT>

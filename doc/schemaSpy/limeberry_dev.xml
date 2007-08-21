@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database name="limeberry_dev" type="MySQL - 5.0.45-Debian_1-log">
+   <tables>
+      <table name="aces" numRows="22" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`)" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int">
+            <child column="ace_id" foreignKey="fk_ap_ace" implied="false" onDeleteCascade="false" table="aces_privileges"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="grantdeny" nullable="false" remarks="" size="1" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="position" nullable="false" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="3" name="protected" nullable="false" remarks="" size="1" type="BIT"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="4" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_rp_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" digits="0" id="5" name="principal_id" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" digits="0" id="6" name="property_namespace_id" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" digits="0" id="7" name="property_name" nullable="true" remarks="" size="4096" type="varchar"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="fk_rp_principal" unique="false">
+            <column ascending="true" name="principal_id"/>
+         </index>
+         <index name="fk_rp_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+      </table>
+      <table name="aces_privileges" numRows="26" remarks="InnoDB free: 4096 kB; (`privilege_id`) REFER `limeberry_dev/privileges`(`id`); (" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="ace_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_ap_ace" implied="false" onDeleteCascade="false" table="aces"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="privilege_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_ap_pr" implied="false" onDeleteCascade="false" table="privileges"/>
+         </column>
+         <primaryKey column="ace_id" sequenceNumberInPK="1"/>
+         <primaryKey column="privilege_id" sequenceNumberInPK="2"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="ace_id"/>
+            <column ascending="true" name="privilege_id"/>
+         </index>
+         <index name="fk_ap_ace" unique="false">
+            <column ascending="true" name="ace_id"/>
+         </index>
+         <index name="fk_ap_pr" unique="false">
+            <column ascending="true" name="privilege_id"/>
+         </index>
+      </table>
+      <table name="acl_inheritance" numRows="9" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`)" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_ai_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" digits="0" id="1" name="parent_id" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" defaultValue="1" digits="0" id="2" name="lft" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" defaultValue="2" digits="0" id="3" name="rgt" nullable="true" remarks="" size="11" type="int"/>
+         <index name="fk_ai_parent" unique="false">
+            <column ascending="true" name="parent_id"/>
+         </index>
+         <index name="fk_ai_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+         <index name="ix_ai_lft" unique="false">
+            <column ascending="true" name="lft"/>
+         </index>
+         <index name="ix_ai_rgt" unique="false">
+            <column ascending="true" name="rgt"/>
+         </index>
+      </table>
+      <table name="binds" numRows="19" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`); (`c" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int">
+            <child column="bind_id" foreignKey="fk_bl_bi" implied="false" onDeleteCascade="false" table="lockroot_binds"/>
+            <child column="bind_id" foreignKey="fk_bind_path" implied="false" onDeleteCascade="false" table="paths"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="name" nullable="false" remarks="" size="1024" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="collection_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_bi_collection" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="3" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_bi_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="4" name="updated_at" nullable="false" remarks="" size="19" type="datetime"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="fk_bi_collection" unique="false">
+            <column ascending="true" name="collection_id"/>
+         </index>
+         <index name="fk_bi_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+      </table>
+      <table name="bodies" numRows="0" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`)" type="TABLE">
+         <column autoUpdated="false" digits="0" id="0" name="resource_id" nullable="true" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_fi_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="size" nullable="false" remarks="" size="20" type="int"/>
+         <column autoUpdated="false" defaultValue="en" digits="0" id="2" name="contentlanguage" nullable="true" remarks="" size="255" type="varchar"/>
+         <column autoUpdated="false" digits="0" id="3" name="mimetype" nullable="true" remarks="" size="255" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="4" name="sha1" nullable="false" remarks="" size="40" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="5" name="created_at" nullable="false" remarks="" size="19" type="datetime"/>
+         <index name="fk_fi_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+      </table>
+      <table name="lockroot_binds" numRows="0" remarks="InnoDB free: 4096 kB; (`bind_id`) REFER `limeberry_dev/binds`(`id`); (`lock_id`)" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="lock_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_bl_lk" implied="false" onDeleteCascade="false" table="locks"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="bind_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_bl_bi" implied="false" onDeleteCascade="false" table="binds"/>
+         </column>
+         <primaryKey column="bind_id" sequenceNumberInPK="1"/>
+         <primaryKey column="lock_id" sequenceNumberInPK="2"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="lock_id"/>
+            <column ascending="true" name="bind_id"/>
+         </index>
+         <index name="fk_bl_bi" unique="false">
+            <column ascending="true" name="bind_id"/>
+         </index>
+         <index name="fk_bl_lk" unique="false">
+            <column ascending="true" name="lock_id"/>
+         </index>
+      </table>
+      <table name="locks" numRows="0" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`); (`o" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int">
+            <child column="lock_id" foreignKey="fk_bl_lk" implied="false" onDeleteCascade="false" table="lockroot_binds"/>
+            <child column="lock_id" foreignKey="fk_lr_lo" implied="false" onDeleteCascade="false" table="locks_resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="uuid" nullable="false" remarks="" size="32" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_li_re" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="3" name="owner_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_li_on" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <column autoUpdated="false" defaultValue="X" digits="0" id="4" name="scope" nullable="false" remarks="" size="1" type="varchar"/>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="5" name="depth" nullable="false" remarks="" size="1" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="6" name="expires_at" nullable="false" remarks="" size="19" type="datetime"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="7" name="owner_info" nullable="false" remarks="" size="65535" type="text"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="8" name="lock_root" nullable="false" remarks="" size="65535" type="text"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="fk_li_on" unique="false">
+            <column ascending="true" name="owner_id"/>
+         </index>
+         <index name="fk_li_re" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+         <index name="ix_locks_expires_at" unique="false">
+            <column ascending="true" name="expires_at"/>
+         </index>
+      </table>
+      <table name="locks_resources" numRows="0" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`); (`l" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="lock_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_lr_lo" implied="false" onDeleteCascade="false" table="locks"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_lr_re" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <primaryKey column="lock_id" sequenceNumberInPK="1"/>
+         <primaryKey column="resource_id" sequenceNumberInPK="2"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="lock_id"/>
+            <column ascending="true" name="resource_id"/>
+         </index>
+         <index name="fk_lr_lo" unique="false">
+            <column ascending="true" name="lock_id"/>
+         </index>
+         <index name="fk_lr_re" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+      </table>
+      <table name="membership" numRows="4" remarks="InnoDB free: 4096 kB; (`member_id`) REFER `limeberry_dev/principals`(`resource_i" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="group_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_gm_group" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="member_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_gm_member" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <primaryKey column="group_id" sequenceNumberInPK="1"/>
+         <primaryKey column="member_id" sequenceNumberInPK="2"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="group_id"/>
+            <column ascending="true" name="member_id"/>
+         </index>
+         <index name="fk_gm_group" unique="false">
+            <column ascending="true" name="group_id"/>
+         </index>
+         <index name="fk_gm_member" unique="false">
+            <column ascending="true" name="member_id"/>
+         </index>
+      </table>
+      <table name="namespaces" numRows="1" remarks="InnoDB free: 4096 kB" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int">
+            <child column="namespace_id" foreignKey="fk_priv_namespace" implied="false" onDeleteCascade="false" table="privileges"/>
+            <child column="namespace_id" foreignKey="fk_pr_namespace" implied="false" onDeleteCascade="false" table="properties"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="name" nullable="false" remarks="" size="4096" type="varchar"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="paths" numRows="0" remarks="InnoDB free: 4096 kB; (`bind_id`) REFER `limeberry_dev/binds`(`id`)" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" digits="0" id="1" name="parent_id" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" digits="0" id="2" name="bind_id" nullable="true" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_bind_path" implied="false" onDeleteCascade="false" table="binds"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="3" name="url" nullable="false" remarks="" size="767" type="varchar"/>
+         <column autoUpdated="false" digits="0" id="4" name="lastmodified" nullable="true" remarks="" size="19" type="datetime"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="fk_bind_path" unique="false">
+            <column ascending="true" name="bind_id"/>
+         </index>
+         <index name="ix_path_url" unique="true">
+            <column ascending="true" name="url"/>
+         </index>
+      </table>
+      <table name="principals" numRows="7" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`)" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <child column="owner_id" foreignKey="fk_li_on" implied="false" onDeleteCascade="false" table="locks"/>
+            <child column="group_id" foreignKey="fk_gm_group" implied="false" onDeleteCascade="false" table="membership"/>
+            <child column="member_id" foreignKey="fk_gm_member" implied="false" onDeleteCascade="false" table="membership"/>
+            <child column="creator_id" foreignKey="fk_re_creator" implied="false" onDeleteCascade="false" table="resources"/>
+            <child column="owner_id" foreignKey="fk_re_owner" implied="false" onDeleteCascade="false" table="resources"/>
+            <child column="group_id" foreignKey="fk_tgm_group" implied="false" onDeleteCascade="false" table="transitive_membership"/>
+            <child column="member_id" foreignKey="fk_tgm_member" implied="false" onDeleteCascade="false" table="transitive_membership"/>
+            <child column="principal_id" foreignKey="fk_us_principal" implied="false" onDeleteCascade="false" table="users"/>
+            <parent column="id" foreignKey="fk_pp_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="1" name="used_quota" nullable="false" remarks="" size="20" type="int"/>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="2" name="total_quota" nullable="false" remarks="" size="20" type="int"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="3" name="name" nullable="false" remarks="" size="1024" type="varchar"/>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="4" name="lock_version" nullable="true" remarks="" size="11" type="int"/>
+         <index name="fk_pp_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+      </table>
+      <table name="privileges" numRows="11" remarks="InnoDB free: 4096 kB; (`namespace_id`) REFER `limeberry_dev/namespaces`(`id`)" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int">
+            <child column="privilege_id" foreignKey="fk_ap_pr" implied="false" onDeleteCascade="false" table="aces_privileges"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="name" nullable="false" remarks="" size="255" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="namespace_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_priv_namespace" implied="false" onDeleteCascade="false" table="namespaces"/>
+         </column>
+         <column autoUpdated="false" digits="0" id="3" name="parent_id" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" digits="0" id="4" name="lft" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" digits="0" id="5" name="rgt" nullable="true" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="6" name="description" nullable="false" remarks="" size="1024" type="varchar"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="fk_pr_parent" unique="false">
+            <column ascending="true" name="parent_id"/>
+         </index>
+         <index name="fk_priv_namespace" unique="false">
+            <column ascending="true" name="namespace_id"/>
+         </index>
+         <index name="ix_pr_lft" unique="false">
+            <column ascending="true" name="lft"/>
+         </index>
+         <index name="ix_pr_rgt" unique="false">
+            <column ascending="true" name="rgt"/>
+         </index>
+      </table>
+      <table name="properties" numRows="0" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`); (`n" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="namespace_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_pr_namespace" implied="false" onDeleteCascade="false" table="namespaces"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="name" nullable="false" remarks="" size="4096" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="3" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_pr_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" digits="0" id="4" name="value" nullable="true" remarks="" size="65535" type="text"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="fk_pr_namespace" unique="false">
+            <column ascending="true" name="namespace_id"/>
+         </index>
+         <index name="fk_pr_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+      </table>
+      <table name="redirects" numRows="0" remarks="InnoDB free: 4096 kB; (`resource_id`) REFER `limeberry_dev/resources`(`id`)" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_rd_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="T" digits="0" id="1" name="lifetime" nullable="false" remarks="" size="1" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="target" nullable="false" remarks="" size="4096" type="varchar"/>
+         <index name="fk_rd_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+      </table>
+      <table name="resources" numRows="16" remarks="InnoDB free: 4096 kB; (`owner_id`) REFER `limeberry_dev/principals`(`resource_id" type="TABLE">
+         <column autoUpdated="true" digits="0" id="0" name="id" nullable="false" remarks="" size="11" type="int">
+            <child column="resource_id" foreignKey="fk_rp_resource" implied="false" onDeleteCascade="false" table="aces"/>
+            <child column="resource_id" foreignKey="fk_ai_resource" implied="false" onDeleteCascade="false" table="acl_inheritance"/>
+            <child column="collection_id" foreignKey="fk_bi_collection" implied="false" onDeleteCascade="false" table="binds"/>
+            <child column="resource_id" foreignKey="fk_bi_resource" implied="false" onDeleteCascade="false" table="binds"/>
+            <child column="resource_id" foreignKey="fk_fi_resource" implied="false" onDeleteCascade="false" table="bodies"/>
+            <child column="resource_id" foreignKey="fk_li_re" implied="false" onDeleteCascade="false" table="locks"/>
+            <child column="resource_id" foreignKey="fk_lr_re" implied="false" onDeleteCascade="false" table="locks_resources"/>
+            <child column="resource_id" foreignKey="fk_pp_resource" implied="false" onDeleteCascade="false" table="principals"/>
+            <child column="resource_id" foreignKey="fk_pr_resource" implied="false" onDeleteCascade="false" table="properties"/>
+            <child column="resource_id" foreignKey="fk_rd_resource" implied="false" onDeleteCascade="false" table="redirects"/>
+            <child column="resource_id" foreignKey="fk_vc_resource" implied="false" onDeleteCascade="false" table="vcrs"/>
+            <child column="vhr_id" foreignKey="fk_vc_vhr" implied="false" onDeleteCascade="false" table="vcrs"/>
+            <child column="resource_id" foreignKey="fk_ve_resource" implied="false" onDeleteCascade="false" table="versions"/>
+            <child column="vhr_id" foreignKey="fk_ve_vhr" implied="false" onDeleteCascade="false" table="versions"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="uuid" nullable="false" remarks="" size="32" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="created_at" nullable="false" remarks="" size="19" type="datetime"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="3" name="displayname" nullable="false" remarks="" size="1024" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="4" name="comment" nullable="false" remarks="" size="65535" type="text"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="5" name="type" nullable="false" remarks="" size="50" type="varchar"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="6" name="owner_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_re_owner" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="7" name="creator_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_re_creator" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="8" name="lock_version" nullable="true" remarks="" size="11" type="int"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="fk_re_creator" unique="false">
+            <column ascending="true" name="creator_id"/>
+         </index>
+         <index name="fk_re_owner" unique="false">
+            <column ascending="true" name="owner_id"/>
+         </index>
+      </table>
+      <table name="schema_info" numRows="1" remarks="" type="TABLE">
+         <column autoUpdated="false" digits="0" id="0" name="version" nullable="true" remarks="" size="11" type="int"/>
+      </table>
+      <table name="transitive_membership" numRows="6" remarks="InnoDB free: 4096 kB; (`member_id`) REFER `limeberry_dev/principals`(`resource_i" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="group_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_tgm_group" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="member_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_tgm_member" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <primaryKey column="group_id" sequenceNumberInPK="1"/>
+         <primaryKey column="member_id" sequenceNumberInPK="2"/>
+         <index name="PRIMARY" unique="true">
+            <column ascending="true" name="group_id"/>
+            <column ascending="true" name="member_id"/>
+         </index>
+         <index name="fk_tgm_group" unique="false">
+            <column ascending="true" name="group_id"/>
+         </index>
+         <index name="fk_tgm_member" unique="false">
+            <column ascending="true" name="member_id"/>
+         </index>
+      </table>
+      <table name="users" numRows="2" remarks="InnoDB free: 4096 kB; (`principal_id`) REFER `limeberry_dev/principals`(`resourc" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="principal_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_us_principal" implied="false" onDeleteCascade="false" table="principals"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="pwhash" nullable="false" remarks="" size="32" type="varchar"/>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="2" name="lock_version" nullable="true" remarks="" size="11" type="int"/>
+         <index name="fk_us_principal" unique="false">
+            <column ascending="true" name="principal_id"/>
+         </index>
+      </table>
+      <table name="vcrs" numRows="0" remarks="InnoDB free: 4096 kB; (`checked_id`) REFER `limeberry_dev/versions`(`resource_id" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_vc_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="checked_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="resource_id" foreignKey="fk_vc_checked" implied="false" onDeleteCascade="false" table="versions"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="vhr_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_vc_vhr" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="I" digits="0" id="3" name="checked_state" nullable="false" remarks="" size="1" type="varchar"/>
+         <column autoUpdated="false" digits="0" id="4" name="auto_version" nullable="true" remarks="" size="255" type="varchar"/>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="5" name="checkin_on_unlock" nullable="false" remarks="" size="1" type="BIT"/>
+         <index name="fk_vc_checked" unique="false">
+            <column ascending="true" name="checked_id"/>
+         </index>
+         <index name="fk_vc_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+         <index name="fk_vc_vhr" unique="false">
+            <column ascending="true" name="vhr_id"/>
+         </index>
+      </table>
+      <table name="versions" numRows="0" remarks="InnoDB free: 4096 kB; (`vhr_id`) REFER `limeberry_dev/resources`(`id`); (`resour" type="TABLE">
+         <column autoUpdated="false" defaultValue="" digits="0" id="0" name="resource_id" nullable="false" remarks="" size="11" type="int">
+            <child column="checked_id" foreignKey="fk_vc_checked" implied="false" onDeleteCascade="false" table="vcrs"/>
+            <parent column="id" foreignKey="fk_ve_resource" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <column autoUpdated="false" defaultValue="" digits="0" id="1" name="number" nullable="false" remarks="" size="11" type="int"/>
+         <column autoUpdated="false" defaultValue="" digits="0" id="2" name="vhr_id" nullable="false" remarks="" size="11" type="int">
+            <parent column="id" foreignKey="fk_ve_vhr" implied="false" onDeleteCascade="false" table="resources"/>
+         </column>
+         <index name="fk_ve_resource" unique="false">
+            <column ascending="true" name="resource_id"/>
+         </index>
+         <index name="fk_ve_vhr" unique="false">
+            <column ascending="true" name="vhr_id"/>
+         </index>
+      </table>
+   </tables>
+</database>

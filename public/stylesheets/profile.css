@@ -1,0 +1,32 @@
+/** User Profile & Profile Editing Designs **/
+
+/*****************************
+ * Typographic Styles 
+ *****************************/
+
+#edit {}
+
+/*****************************
+ * Layout
+ *****************************/
+
+fieldset div { margin: 0 0 10px 0; }
+#profile-form label { display: block; }
+
+#edit h1 { margin-bottom: 0px; }
+#edit  #profile-form h2 { display: block; width: 407px; height: 27px; margin: 10px 0 0 0; padding: 4px 0 0 6px;}
+#edit #what-to-show { float: right; margin-right: 135px; width: 275px; height: 363px; }
+#edit #what-to-show h2 { margin: 7px 0 0 10px;}
+
+/*****************************
+ * Colors & Backgrounds 
+ *****************************/
+
+#edit #profile-form h2 {
+	color: #008196; 
+	background: transparent url(/images/backgrounds/profile_edit_heading-bg.png) no-repeat top left; 
+}
+
+#edit #what-to-show { background: transparent url(/images/backgrounds/what_to_show-bg.png) no-repeat top left;  }
+
+#edit #what-to-show h2 { color: #b8b8b8; }

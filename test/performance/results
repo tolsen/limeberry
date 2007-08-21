@@ -1,0 +1,37 @@
+I have tested the performance of total download and upload times by varying the MAXSIZE parameter. The following are the experiment setups:
+
+SETUP 1:
+
+I uploaded a total of 98 files, the total size of which is 52 MB and an average size of 540 KB. The file size range is 130KB to 2.4 MB.
+
+1. MAXSIZE = 0 KB : All files are on disk 
+Uploading time (to filesystem) = 12.5 secs 
+Downloading time = 0.99 secs
+
+2. MAXSIZE = 3 MB : All files are in the database 
+Uploading time (to database) = 36 secs 
+Downloading time = 2.4 secs
+
+3. MAXSIZE = 500 KB : 57 files are in the database and 41 files on disk 
+Uploading time = 20 secs 
+Downloading time = 1.8 secs 
+
+SETUP 2:
+
+I uploaded a total of 129 files, their total size being 4.2 MB. There are 52 - 1KB files and 77 images files having 50 KB average size and their sizes range from 10KB to 120 KB.
+
+1. MAXSIZE = 0 KB : All files are on disk 
+Uploading time (to filesystem) = 13.5 secs 
+Downloading time = 0.69 secs
+
+2. MAXSIZE = 2 KB : All 1 KB files in the database and bigger files on disk
+Uploading time = 13.2 secs 
+Downloading time = 0.68 secs
+
+3. MAXSIZE = 50 KB : Some files on disk and some in the database
+Uploading time = 14 secs 
+Downloading time = 0.75 secs
+
+4. MAXSIZE = 150 KB : All files in the database 
+Uploading time = 14 secs 
+Downloading time = 0.80 secs 
