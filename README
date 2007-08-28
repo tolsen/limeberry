@@ -1,0 +1,7 @@
+LimeBerry is a prototype of an advanced WebDAV server written in Ruby
+on Rails.
+
+General Software Requirements: xdelta, mysql server & client
+
+Gem Requirements: httpauth, mysql, rake, shared-mime-info, uuidtools
+
