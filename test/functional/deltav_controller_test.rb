@@ -26,7 +26,7 @@ require 'deltav_controller'
 # Re-raise errors caught by the controller.
 class DeltavController; def rescue_action(e) raise e end; end
 
-class DeltavControllerTest < DavTestCase
+class DeltavControllerTest < DavFunctionalTestCase
   def setup
     super
     @controller = DeltavController.new

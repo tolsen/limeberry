@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class LockTest < DavTestCase
+class LockTest < DavUnitTestCase
 
   def setup
     super

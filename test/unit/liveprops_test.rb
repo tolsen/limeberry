@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class LivePropsTest < DavTestCase
+class LivePropsTest < DavUnitTestCase
 
   def setup
     super

@@ -26,9 +26,7 @@ require 'lock_controller'
 # Re-raise errors caught by the controller.
 class LockController; def rescue_action(e) raise e end; end
 
-class LockControllerTest < DavTestCase
-  test_helper :lock
-
+class LockControllerTest < DavFunctionalTestCase
   
   def setup
     super

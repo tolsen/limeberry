@@ -20,12 +20,32 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'test/helpers/method_maker'
+module HttpMethodMaker
 
-module BindTestHelper
+  module Functional
+    def self.http_method_body(name)
+      name.gsub!(/-/, '_')
+      <<-EOV
+        def #{name}(path, username = nil)
+          @request.env['REQUEST_METHOD'] = "#{name.upcase}" if defined?(@request)
+          path_a = path.split('/').reject { |n| n.blank? }
+          process(:#{name}, { :path => path_a}, { :username => username })
+        end
+      EOV
+    end
+  end
 
-  %w( bind unbind rebind ).each do |m|
-    class_eval(MethodMaker.http_method_body(m), __FILE__, __LINE__)
+  module Integration
+    def self.http_method_body(name)
+      name.gsub!(/-/, '_')
+      <<-EOV
+        def #{name}(path, parameters=nil, headers=nil)
+          process(:#{name}, parameters, headers)
+        end
+      EOV
+    end
   end
 
 end
+
+    

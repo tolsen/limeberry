@@ -26,7 +26,7 @@ require 'stringio'
 require File.dirname(__FILE__) + '/../../lib/errors'
 require File.dirname(__FILE__) + '/../../lib/if_header'
 
-class ResourceTest < DavTestCase
+class ResourceTest < DavUnitTestCase
 
   # TODO: move to functional tests
   

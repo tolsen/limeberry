@@ -27,8 +27,7 @@ require 'webdav_controller'
 # Re-raise errors caught by the controller.
 class WebdavController; def rescue_action(e) raise e end; end
 
-class WebdavControllerTest < DavTestCase
-  test_helper :webdav
+class WebdavControllerTest < DavFunctionalTestCase
   
   def setup
     super

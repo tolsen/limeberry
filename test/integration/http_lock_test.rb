@@ -20,12 +20,13 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'test/helpers/method_maker'
+require "#{File.dirname(__FILE__)}/../test_helper"
 
-module LockTestHelper
+class HttpLockTest < ActionController::IntegrationTest
+  # fixtures :your, :models
 
-  %w( lock unlock ).each do |m|
-    class_eval(MethodMaker.http_method_body(m), __FILE__, __LINE__)
+  # Replace this with your real tests.
+  def test_truth
+    assert true
   end
-
 end

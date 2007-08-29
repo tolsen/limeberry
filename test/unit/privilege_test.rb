@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class PrivilegeTest < DavTestCase
+class PrivilegeTest < DavUnitTestCase
 
   def setup
     super

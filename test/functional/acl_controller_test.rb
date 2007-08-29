@@ -26,8 +26,7 @@ require 'acl_controller'
 # Re-raise errors caught by the controller.
 class AclController; def rescue_action(e) raise e end; end
 
-class AclControllerTest < DavTestCase
-  test_helper :acl
+class AclControllerTest < DavFunctionalTestCase
   
   def setup
     super

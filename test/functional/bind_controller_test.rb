@@ -30,8 +30,7 @@ class BindController
   def reset() @segment = @href = nil; end
 end
 
-class BindControllerTest < DavTestCase
-  test_helper :bind
+class BindControllerTest < DavFunctionalTestCase
 
   def setup
     super

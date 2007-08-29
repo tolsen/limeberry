@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class BindTest < DavTestCase
+class BindTest < DavUnitTestCase
 
   def setup
     super

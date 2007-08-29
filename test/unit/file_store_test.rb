@@ -24,7 +24,7 @@ require 'test/test_helper'
 require 'stringio'
 require File.dirname(__FILE__) + '/../../lib/errors'
 
-class FileStoreTest < DavTestCase
+class FileStoreTest < DavUnitTestCase
 
   # tests that a put on the filestore actually creates a file on the disk
   # at filestore_root/sha1_segment/path_provided, also tests for overwrite

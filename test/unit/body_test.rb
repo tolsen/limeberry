@@ -23,7 +23,7 @@
 require 'test/test_helper'
 require 'fileutils'
 
-class BodyTest < DavTestCase
+class BodyTest < DavUnitTestCase
 
   def setup
     super

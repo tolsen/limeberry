@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class NamespaceTest < DavTestCase
+class NamespaceTest < DavUnitTestCase
 
   def setup
     super

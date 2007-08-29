@@ -20,8 +20,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'test/helpers/method_maker'
-
-module AclTestHelper
-  class_eval(MethodMaker.http_method_body('acl'), __FILE__, __LINE__)
+module OldHttpMethods
+  def self.included(base)
+    %w( get put delete head ).each do |method|
+      base.send(:alias_method, "old_#{method}".to_sym, method.to_sym)
+    end
+  end
 end

@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class RedirectTest < DavTestCase
+class RedirectTest < DavUnitTestCase
 
   #   #make redirect.
   #   #covers all redirect functionality

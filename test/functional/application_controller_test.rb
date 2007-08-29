@@ -23,7 +23,7 @@
 require 'test/test_helper'
 require 'application'
 
-class ApplicationControllerTest < DavTestCase
+class ApplicationControllerTest < DavFunctionalTestCase
 
   def setup
     super

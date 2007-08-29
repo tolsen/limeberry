@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class PathTest < DavTestCase
+class PathTest < DavUnitTestCase
 
   def test_create
     Collection.mkcol_p("/a", @limeberry)

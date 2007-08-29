@@ -20,6 +20,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+require "config/request_methods"
+
 ActionController::Routing::Routes.draw do |map|
   # Add your own custom routes here.
   # The priority is based upon order of creation: first created -> highest priority.
@@ -41,18 +43,11 @@ ActionController::Routing::Routes.draw do |map|
               :controller => "principal",
               :action => "put_group", :conditions => {:method => :put})
 
-  {
-    "http"   => %w( head get put options delete ),
-    "webdav" => %w( propfind proppatch mkcol copy move ),
-    "lock"  => %w( lock unlock ),
-    "bind"   => %w( bind unbind rebind ),
-    "deltav" => %w( version-control checkin checkout ),
-    "acl"    => %w( acl )
-  }.each do |controller, methods|
+  Limeberry::REQUEST_METHODS.each do |controller, methods|
     methods.each do |method|
       action = method.gsub(/-/, '_')
       map.connect("#{BASE_WEBDAV_PATH}/*path",
-                  :controller => controller,
+                  :controller => controller.to_s,
                   :action => action,
                   :conditions => { :method => method })
     end

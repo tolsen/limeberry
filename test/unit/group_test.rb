@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class GroupTest < DavTestCase
+class GroupTest < DavUnitTestCase
 
   def setup
     super

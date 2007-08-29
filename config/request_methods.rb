@@ -20,29 +20,18 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'test/helpers/method_maker'
+# $Id$
+# $URL$
 
-module HttpTestHelper
+module Limeberry
 
-  def self.included(base)
-    %w( get put delete head ).each do |method|
-      base.send(:alias_method, "old_#{method}".to_sym, method.to_sym)
-    end
-  end
+  REQUEST_METHODS = {
+    :http   => %w( head get put options delete ),
+    :webdav => %w( propfind proppatch mkcol copy move ),
+    :lock  => %w( lock unlock ),
+    :bind   => %w( bind unbind rebind ),
+    :deltav => %w( version-control checkin checkout ),
+    :acl    => %w( acl )
+  }
 
-  %w( get put delete head options ).each do |m|
-    class_eval(MethodMaker.http_method_body(m), __FILE__, __LINE__)
-  end
-    
-  def assert_content_equals(expected, path, clear_headers = false)
-    @request.clear_http_headers if clear_headers
-    get path, 'limeberry'
-    assert_response 200
-    assert_equal expected, @response.binary_content
-  end
-  
-    
 end
-
-
-

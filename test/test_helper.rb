@@ -20,6 +20,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+require 'config/request_methods'
+require 'test/http_method_maker'
+
 raise 'require\'d test/test_helper twice!, you broke it!' if
   ENV['RAILS_ENV'] == 'test'
 
@@ -31,30 +34,14 @@ require 'stringio'
 
 $: << 'test' unless $:.include? 'test'
 
-# Test helpers, via http://wiseheartdesign.com/articles/2006/01/28/test-helpers-for-rails
-TEST_ROOT = File.expand_path(File.dirname(__FILE__)) unless defined? TEST_ROOT
-
-# Auto require test helpers
-Dir[TEST_ROOT + '/helpers/**/*_helper.rb'].each do |helper|
-  require helper
-end
-
 class Test::Unit::TestCase
   def deny(x, m=nil); assert ! x, m; end
 
   self.use_transactional_fixtures = true
   self.use_instantiated_fixtures  = false
-
-  # Class method for test helpers
-  def self.test_helper(*names)
-    names.each do |name|
-      constant = Inflector.constantize(Inflector.classify("#{name}_test_helper"))
-      self.class_eval { include constant }
-    end
-  end
 end
 
-class DavTestCase < Test::Unit::TestCase
+module DavTest
 
   def self.register_profiler
     at_exit do
@@ -92,7 +79,7 @@ class DavTestCase < Test::Unit::TestCase
     File.expand_path(File.join(RAILS_ROOT, path))
   end
 
-  def expanded_file(path) DavTestCase.expanded_file(path) end
+  def expanded_file(path) DavTest.expanded_file(path) end
 
   FILESTORE_TEST_BACKUP = expanded_file "filestore/test-backup"
   def file_store_setup
@@ -178,33 +165,66 @@ class DavTestCase < Test::Unit::TestCase
     resource.reload
   end
 
-  class HttpTestRequest < ActionController::TestRequest
-    attr_reader :cgi
-
-    def initialize
-      super
-      self.body = ""
-    end
-    
-    def body=(body)
-      @cgi ||= FakeCgi.new
-      @cgi.stdinput = StringIO.new(body)
-    end
-
-    def rewind_body
-      @cgi.stdinput.rewind
-    end
-
-    class FakeCgi
-      attr_accessor :stdinput
-    end
-
-    def clear_http_headers
-      env.delete_if { |k, v| k =~ /^HTTP_/ }
-    end
-    
+  def assert_content_equals(expected, path, clear_headers = false)
+    @request.clear_http_headers if clear_headers
+    get path, 'limeberry'
+    assert_response 200
+    assert_equal expected, @response.binary_content
   end
-p
+  
+end
+
+class DavUnitTestCase < Test::Unit::TestCase
+  include DavTest
+end
+
+class DavFunctionalTestCase < Test::Unit::TestCase
+  include DavTest
+
+  def self.inherited sub
+    super
+    sub_name = sub.name.demodulize.underscore
+    if sub_name.sub! /^([^_]*)_controller_test$/, '\1'
+      request_class = sub_name.to_sym
+
+      if Limeberry::REQUEST_METHODS.include? request_class
+        Limeberry::REQUEST_METHODS[request_class].each do |m|
+          sub.class_eval(HttpMethodMaker::Functional.http_method_body(m), __FILE__, __LINE__)
+        end
+      end
+    end
+  end
+  
+end
+
+class DavIntegrationTestCase < ActionController::IntegrationTest
+  include DavTest
+end
+
+class HttpTestRequest < ActionController::TestRequest
+  attr_reader :cgi
+
+  def initialize
+    super
+    self.body = ""
+  end
+  
+  def body=(body)
+    @cgi ||= FakeCgi.new
+    @cgi.stdinput = StringIO.new(body)
+  end
+
+  def rewind_body
+    @cgi.stdinput.rewind
+  end
+
+  class FakeCgi
+    attr_accessor :stdinput
+  end
+
+  def clear_http_headers
+    env.delete_if { |k, v| k =~ /^HTTP_/ }
+  end
   
 end
 

@@ -26,7 +26,7 @@ require 'principal_controller'
 # Re-raise errors caught by the controller.
 class PrincipalController; def rescue_action(e) raise e end; end
 
-class PrincipalControllerTest < DavTestCase
+class PrincipalControllerTest < DavFunctionalTestCase
   def setup
     super
     @controller = PrincipalController.new

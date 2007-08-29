@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class IfHeaderParserTest < DavTestCase
+class IfHeaderParserTest < DavUnitTestCase
 
   def test_cond_new
     cond = IfHeaderParser::Cond.new(:state_token, '<locktoken:a-write-lock-token>')

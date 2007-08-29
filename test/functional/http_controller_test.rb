@@ -26,8 +26,7 @@ require 'http_controller'
 # Re-raise errors caught by the controller.
 class HttpController; def rescue_action(e) raise e end; end
 
-class HttpControllerTest < DavTestCase
-  test_helper :http
+class HttpControllerTest < DavFunctionalTestCase
 
   def setup
     super

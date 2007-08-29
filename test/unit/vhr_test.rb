@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class VhrTest < DavTestCase
+class VhrTest < DavUnitTestCase
 
   def setup
     @resource = Bind.locate '/deltav/vcr3'

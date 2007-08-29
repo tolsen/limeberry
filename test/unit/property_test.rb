@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class PropertyTest < DavTestCase
+class PropertyTest < DavUnitTestCase
 
   def setup
     super

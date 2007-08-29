@@ -24,7 +24,7 @@ require 'test/test_helper'
 require 'stringio'
 require  File.dirname(__FILE__) + '/../../lib/errors'
 
-class CollectionTest < DavTestCase
+class CollectionTest < DavUnitTestCase
 
   def setup
     super

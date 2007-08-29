@@ -22,7 +22,7 @@
 
 require 'test/test_helper'
 
-class VcrTest < DavTestCase
+class VcrTest < DavUnitTestCase
 
   def setup
     super
