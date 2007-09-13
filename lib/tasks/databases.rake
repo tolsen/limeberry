@@ -1,4 +1,4 @@
-# -*- rake -*-
+# -*- ruby -*-
 
 namespace :db do
   namespace :test do

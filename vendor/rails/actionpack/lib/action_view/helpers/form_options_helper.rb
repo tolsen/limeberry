@@ -1,6 +1,6 @@
 require 'cgi'
 require 'erb'
-require File.dirname(__FILE__) + '/form_helper'
+require 'action_view/helpers/form_helper'
 
 module ActionView
   module Helpers
@@ -10,7 +10,9 @@ module ActionView
     # and <tt>time_zone_select</tt> methods take an <tt>options</tt> parameter,
     # a hash.
     #
-    # * <tt>:include_blank</tt> - set to true if the first option element of the select element is a blank. Useful if there is not a default value required for the select element. For example,
+    # * <tt>:include_blank</tt> - set to true or a prompt string if the first option element of the select element is a blank. Useful if there is not a default value required for the select element.
+    #
+    # For example,
     #
     #   select("post", "category", Post::CATEGORIES, {:include_blank => true})
     #
@@ -22,15 +24,31 @@ module ActionView
     #     <option>poem</option>
     #   </select>
     #
-    # * <tt>:prompt</tt> - set to true or a prompt string. When the select element doesn't have a value yet, this prepends an option with a generic prompt -- "Please select" -- or the given prompt string.
+    # Another common case is a select tag for an <tt>belongs_to</tt>-associated object.
     #
-    # Another common case is a select tag for an <tt>belongs_to</tt>-associated object. For example,
+    # Example with @post.person_id => 2:
     #
-    #   select("post", "person_id", Person.find(:all).collect {|p| [ p.name, p.id ] })
+    #   select("post", "person_id", Person.find(:all).collect {|p| [ p.name, p.id ] }, {:include_blank => 'None'})
     #
     # could become:
     #
     #   <select name="post[person_id]">
+    #     <option value="">None</option>
+    #     <option value="1">David</option>
+    #     <option value="2" selected="selected">Sam</option>
+    #     <option value="3">Tobias</option>
+    #   </select>
+    #
+    # * <tt>:prompt</tt> - set to true or a prompt string. When the select element doesn't have a value yet, this prepends an option with a generic prompt -- "Please select" -- or the given prompt string.
+    #
+    # Example:
+    #
+    #   select("post", "person_id", Person.find(:all).collect {|p| [ p.name, p.id ] }, {:prompt => 'Select Person'})
+    #
+    # could become:
+    #
+    #   <select name="post[person_id]">
+    #     <option value="">Select Person</option>
     #     <option value="1">David</option>
     #     <option value="2">Sam</option>
     #     <option value="3">Tobias</option>
@@ -48,7 +66,7 @@ module ActionView
       # could become:
       #
       #   <select name="post[person_id]">
-      #     <option></option>
+      #     <option value=""></option>
       #     <option value="1" selected="selected">David</option>
       #     <option value="2">Sam</option>
       #     <option value="3">Tobias</option>
@@ -66,7 +84,36 @@ module ActionView
         InstanceTag.new(object, method, self, nil, options.delete(:object)).to_select_tag(choices, options, html_options)
       end
 
-      # Return select and option tags for the given object and method using options_from_collection_for_select to generate the list of option tags.
+      # Returns <tt><select></tt> and <tt><option></tt> tags for the collection of existing return values of
+      # +method+ for +object+'s class. The value returned from calling +method+ on the instance +object+ will
+      # be selected. If calling +method+ returns +nil+, no selection is made without including <tt>:prompt</tt>
+      # or <tt>:include_blank</tt> in the +options+ hash.
+      #
+      # The <tt>:value_method</tt> and <tt>:text_method</tt> parameters are methods to be called on each member
+      # of +collection+. The return values are used as the +value+ attribute and contents of each
+      # <tt><option></tt> tag, respectively.
+      # 
+      # Example object structure for use with this method:
+      #   class Post < ActiveRecord::Base
+      #     belongs_to :author
+      #   end
+      #   class Author < ActiveRecord::Base
+      #     has_many :posts
+      #     def name_with_initial
+      #       "#{first_name.first}. #{last_name}"
+      #     end
+      #   end
+      #
+      # Sample usage (selecting the associated +Author+ for an instance of +Post+, <tt>@post</tt>):
+      #   collection_select(:post, :author_id, Author.find(:all), :id, :name_with_initial, {:prompt => true})
+      #
+      # If <tt>@post.author_id</tt> is already <tt>1</tt>, this would return:
+      #   <select name="post[author_id]">
+      #     <option value="">Please select</option>
+      #     <option value="1" selected="selected">D. Heinemeier Hansson</option>
+      #     <option value="2">D. Thomas</option>
+      #     <option value="3">M. Clark</option>
+      #   </select>
       def collection_select(object, method, collection, value_method, text_method, options = {}, html_options = {})
         InstanceTag.new(object, method, self, nil, options.delete(:object)).to_collection_select_tag(collection, value_method, text_method, options, html_options)
       end
@@ -112,17 +159,9 @@ module ActionView
         container = container.to_a if Hash === container
 
         options_for_select = container.inject([]) do |options, element|
-          if !element.is_a?(String) and element.respond_to?(:first) and element.respond_to?(:last)
-            is_selected = ( (selected.respond_to?(:include?) && !selected.is_a?(String) ? selected.include?(element.last) : element.last == selected) )
-            if is_selected
-              options << "<option value=\"#{html_escape(element.last.to_s)}\" selected=\"selected\">#{html_escape(element.first.to_s)}</option>"
-            else
-              options << "<option value=\"#{html_escape(element.last.to_s)}\">#{html_escape(element.first.to_s)}</option>"
-            end
-          else
-            is_selected = ( (selected.respond_to?(:include?) && !selected.is_a?(String) ? selected.include?(element) : element == selected) )
-            options << ((is_selected) ? "<option value=\"#{html_escape(element.to_s)}\" selected=\"selected\">#{html_escape(element.to_s)}</option>" : "<option value=\"#{html_escape(element.to_s)}\">#{html_escape(element.to_s)}</option>")
-          end
+          text, value = option_text_and_value(element)
+          selected_attribute = ' selected="selected"' if option_value_selected?(value, selected)
+          options << %(<option value="#{html_escape(value.to_s)}"#{selected_attribute}>#{html_escape(text.to_s)}</option>)
         end
 
         options_for_select.join("\n")
@@ -130,55 +169,68 @@ module ActionView
 
       # Returns a string of option tags that have been compiled by iterating over the +collection+ and assigning the
       # the result of a call to the +value_method+ as the option value and the +text_method+ as the option text.
-      # If +selected_value+ is specified, the element returning a match on +value_method+ will get the selected option tag.
+      # If +selected+ is specified, the element returning a match on +value_method+ will get the selected option tag.
       #
       # Example (call, result). Imagine a loop iterating over each +person+ in <tt>@project.people</tt> to generate an input tag:
       #   options_from_collection_for_select(@project.people, "id", "name")
       #     <option value="#{person.id}">#{person.name}</option>
       #
       # NOTE: Only the option tags are returned, you have to wrap this call in a regular HTML select tag.
-      def options_from_collection_for_select(collection, value_method, text_method, selected_value = nil)
-        options_for_select(
-          collection.inject([]) { |options, object| options << [ object.send(text_method), object.send(value_method) ] },
-          selected_value
-        )
+      def options_from_collection_for_select(collection, value_method, text_method, selected = nil)
+        options = collection.map do |element|
+          [element.send(text_method), element.send(value_method)]
+        end
+        options_for_select(options, selected)
       end
 
-      # Returns a string of option tags, like options_from_collection_for_select, but surrounds them with <optgroup> tags.
+      # Returns a string of <tt><option></tt> tags, like <tt>#options_from_collection_for_select</tt>, but
+      # groups them by <tt><optgroup></tt> tags based on the object relationships of the arguments.
       #
-      # An array of group objects are passed. Each group should return an array of options when calling group_method
-      # Each group should return its name when calling group_label_method.
+      # Parameters:
+      # +collection+::          An array of objects representing the <tt><optgroup></tt> tags
+      # +group_method+::        The name of a method which, when called on a member of +collection+, returns an
+      #                         array of child objects representing the <tt><option></tt> tags
+      # +group_label_method+::  The name of a method which, when called on a member of +collection+, returns a
+      #                         string to be used as the +label+ attribute for its <tt><optgroup></tt> tag
+      # +option_key_method+::   The name of a method which, when called on a child object of a member of
+      #                         +collection+, returns a value to be used as the +value+ attribute for its
+      #                         <tt><option></tt> tag
+      # +option_value_method+:: The name of a method which, when called on a child object of a member of
+      #                         +collection+, returns a value to be used as the contents of its
+      #                         <tt><option></tt> tag
+      # +selected_key+::        A value equal to the +value+ attribute for one of the <tt><option></tt> tags,
+      #                         which will have the +selected+ attribute set. Corresponds to the return value
+      #                         of one of the calls to +option_key_method+. If +nil+, no selection is made.
       #
-      # html_option_groups_from_collection(@continents, "countries", "continent_name", "country_id", "country_name", @selected_country.id)
+      # Example object structure for use with this method:
+      #   class Continent < ActiveRecord::Base
+      #     has_many :countries
+      #     # attribs: id, name
+      #   end
+      #   class Country < ActiveRecord::Base
+      #     belongs_to :continent
+      #     # attribs: id, name, continent_id
+      #   end
       #
-      # Could become:
-      #  <optgroup label="Africa">
-      #   <select>Egypt</select>
-      #   <select>Rwanda</select>
-      #   ...
-      #  </optgroup>
-      #  <optgroup label="Asia">
-      #   <select>China</select>
-      #   <select>India</select>
-      #   <select>Japan</select>
-      #   ...
-      #  </optgroup>
+      # Sample usage:
+      #   option_groups_from_collection_for_select(@continents, :countries, :name, :id, :name, 3)
       #
-      # with objects of the following classes:
-      # class Continent
-      #   def initialize(p_name, p_countries) @continent_name = p_name; @countries = p_countries; end
-      #   def continent_name() @continent_name; end
-      #   def countries() @countries; end
-      # end
-      # class Country
-      #   def initialize(id, name) @id = id; @name = name end
-      #   def country_id() @id; end
-      #   def country_name() @name; end
-      # end
+      # Possible output:
+      #   <optgroup label="Africa">
+      #     <option value="1">Egypt</option>
+      #     <option value="4">Rwanda</option>
+      #     ...
+      #   </optgroup>
+      #   <optgroup label="Asia">
+      #     <option value="3" selected="selected">China</option>
+      #     <option value="12">India</option>
+      #     <option value="5">Japan</option>
+      #     ...
+      #   </optgroup>
       #
-      # NOTE: Only the option tags are returned, you have to wrap this call in a regular HTML select tag.
-      def option_groups_from_collection_for_select(collection, group_method, group_label_method,
-            option_key_method, option_value_method, selected_key = nil)
+      # <b>Note:</b> Only the <tt><optgroup></tt> and <tt><option></tt> tags are returned, so you still have to
+      # wrap the output in an appropriate <tt><select></tt> tag.
+      def option_groups_from_collection_for_select(collection, group_method, group_label_method, option_key_method, option_value_method, selected_key = nil)
         collection.inject("") do |options_for_select, group|
           group_label_string = eval("group.#{group_label_method}")
           options_for_select += "<optgroup label=\"#{html_escape(group_label_string)}\">"
@@ -244,6 +296,23 @@ module ActionView
       end
 
       private
+        def option_text_and_value(option)
+          # Options are [text, value] pairs or strings used for both.
+          if !option.is_a?(String) and option.respond_to?(:first) and option.respond_to?(:last)
+            [option.first, option.last]
+          else
+            [option, option]
+          end
+        end
+
+        def option_value_selected?(value, selected)
+          if selected.respond_to?(:include?) && !selected.is_a?(String)
+            selected.include? value
+          else
+            value == selected
+          end
+        end
+
         # All the countries included in the country_options output.
         COUNTRIES = [ "Afghanistan", "Albania", "Algeria", "American Samoa", "Andorra", "Angola", "Anguilla", 
             "Antarctica", "Antigua And Barbuda", "Argentina", "Armenia", "Aruba", "Australia", 
@@ -332,8 +401,9 @@ module ActionView
 
       private
         def add_options(option_tags, options, value = nil)
-          option_tags = "<option value=\"\"></option>\n" + option_tags if options[:include_blank]
-
+          if options[:include_blank]
+            option_tags = "<option value=\"\">#{options[:include_blank] if options[:include_blank].kind_of?(String)}</option>\n" + option_tags
+          end
           if value.blank? && options[:prompt]
             ("<option value=\"\">#{options[:prompt].kind_of?(String) ? options[:prompt] : 'Please select'}</option>\n") + option_tags
           else

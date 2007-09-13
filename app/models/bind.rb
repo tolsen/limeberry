@@ -145,6 +145,7 @@ class Bind < ActiveRecord::Base
       resource = root_collection
       resource.path_binds = []
       resource.url = '/'
+      resource.url_lastmodified = resource.created_at
       return resource
     end
 

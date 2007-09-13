@@ -2,6 +2,5 @@
 # Likewise, all the methods added will be available for all controllers.
 
 class ApplicationController < ActionController::Base
-  # Pick a unique cookie name to distinguish our session data from others'
-  session :session_key => '_<%= app_name %>_session_id'
+  helper :all # include all helpers, all the time
 end

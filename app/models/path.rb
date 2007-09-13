@@ -135,11 +135,9 @@ class Path < ActiveRecord::Base
     conditions += " AND b2.id NOT IN #{binds_seen.sql_in_condition}" unless binds_seen.empty?
 
     transaction do
-      new_binds = Bind.find(:all,
-                            :joins =>
-                            'AS b1 INNER JOIN binds AS b2' +
-                            ' ON b1.resource_id = b2.collection_id',
-                            :conditions => conditions)
+      new_binds = Bind.find_by_sql( 'SELECT * FROM binds AS b1 INNER JOIN binds AS b2' +
+                                    ' ON b1.resource_id = b2.collection_id' +
+                                    ' WHERE ' + conditions)
 
       # maybe have this use ON DUPLICATE instead of IGNORE?
       insert_sql =

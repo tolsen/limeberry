@@ -16,7 +16,7 @@ module ActionController #:nodoc:
   #     end
   #   end
   #
-  #   display.rhtml
+  #   display.erb
   #     <% if flash[:notice] %><div class="notice"><%= flash[:notice] %></div><% end %>
   #
   # This example just places a string in the flash, but you can put any object in there. And of course, you can put as many
@@ -63,7 +63,7 @@ module ActionController #:nodoc:
       end
       
       def update(h) #:nodoc:
-        h.keys.each{ |k| discard(k) }
+        h.keys.each { |k| keep(k) }
         super
       end
       
@@ -96,10 +96,10 @@ module ActionController #:nodoc:
         use(k, false)
       end
     
-      # Marks the entire flash or a single flash entry to be discarded by the end of the current action
+      # Marks the entire flash or a single flash entry to be discarded by the end of the current action:
       #
-      #     flash.keep                 # keep entire flash available for the next action
-      #     flash.discard(:warning)    # discard the "warning" entry (it'll still be available for the current action)
+      #     flash.discard              # discard the entire flash at the end of the current action
+      #     flash.discard(:warning)    # discard only the "warning" entry at the end of the current action
       def discard(k = nil)
         use(k)
       end
@@ -136,23 +136,14 @@ module ActionController #:nodoc:
     end
 
     module InstanceMethods #:nodoc:
-      def assign_shortcuts_with_flash(request, response) #:nodoc:
-        assign_shortcuts_without_flash(request, response)
-        flash(:refresh)
-      end
-      
-      def process_cleanup_with_flash
-        flash.sweep if @_session
-        process_cleanup_without_flash
-      end
 
-      def reset_session_with_flash
-        reset_session_without_flash
-        remove_instance_variable(:@_flash)
-        flash(:refresh)
-      end
+      protected
+        def reset_session_with_flash
+          reset_session_without_flash
+          remove_instance_variable(:@_flash)
+          flash(:refresh)
+        end
       
-      protected 
         # Access the contents of the flash. Use <tt>flash["notice"]</tt> to read a notice you put there or 
         # <tt>flash["notice"] = "hello"</tt> to put a new one.
         # Note that if sessions are disabled only flash.now will work.
@@ -176,6 +167,17 @@ module ActionController #:nodoc:
         def keep_flash #:doc:
           ActiveSupport::Deprecation.warn 'keep_flash is deprecated; use flash.keep instead.', caller
           flash.keep
+        end
+        
+      private
+        def assign_shortcuts_with_flash(request, response) #:nodoc:
+          assign_shortcuts_without_flash(request, response)
+          flash(:refresh)
+        end
+    
+        def process_cleanup_with_flash
+          flash.sweep if @_session
+          process_cleanup_without_flash
         end
     end
   end

@@ -1,8 +1,5 @@
 require File.dirname(__FILE__) + '/../abstract_unit'
-
-unless defined?(Customer)
-  Customer = Struct.new("Customer", :name)
-end
+require File.dirname(__FILE__) + '/fake_models'
 
 module Fun
   class GamesController < ActionController::Base
@@ -69,6 +66,10 @@ class TestController < ActionController::Base
     render "test/hello"
   end
 
+  def heading
+    head :ok
+  end
+
   def greeting
     # let's just rely on the template
   end
@@ -118,8 +119,38 @@ class TestController < ActionController::Base
     ActionView::Base.local_assigns_support_string_keys = false
   end
 
+  def formatted_html_erb
+  end
+
+  def formatted_xml_erb
+  end
+
   def render_to_string_test
     @foo = render_to_string :inline => "this is a test"
+  end
+
+  def partial
+    render :partial => 'partial'
+  end
+
+  def partial_dot_html
+    render :partial => 'partial.html.erb'
+  end
+  
+  def partial_as_rjs
+    render :update do |page|
+      page.replace :foo, :partial => 'partial'
+    end
+  end
+
+  def respond_to_partial_as_rjs
+    respond_to do |format|
+      format.js do
+        render :update do |page|
+          page.replace :foo, :partial => 'partial'
+        end
+      end
+    end
   end
 
   def rescue_action(e) raise end
@@ -134,8 +165,8 @@ class TestController < ActionController::Base
     end
 end
 
-TestController.template_root = File.dirname(__FILE__) + "/../fixtures/"
-Fun::GamesController.template_root = File.dirname(__FILE__) + "/../fixtures/"
+TestController.view_paths = [ File.dirname(__FILE__) + "/../fixtures/" ]
+Fun::GamesController.view_paths = [ File.dirname(__FILE__) + "/../fixtures/" ]
 
 class RenderTest < Test::Unit::TestCase
   def setup
@@ -286,8 +317,110 @@ class RenderTest < Test::Unit::TestCase
     assert_equal "Goodbye, Local David", @response.body
   end
 
+  def test_render_200_should_set_etag
+    get :render_hello_world_from_variable
+    assert_equal etag_for("hello david"), @response.headers['ETag']
+    assert_equal "private, max-age=0, must-revalidate", @response.headers['Cache-Control']
+  end
+
+  def test_render_against_etag_request_should_304_when_match
+    @request.headers["HTTP_IF_NONE_MATCH"] = etag_for("hello david")
+    get :render_hello_world_from_variable
+    assert_equal "304 Not Modified", @response.headers['Status']
+    assert @response.body.empty?
+  end
+
+  def test_render_against_etag_request_should_200_when_no_match
+    @request.headers["HTTP_IF_NONE_MATCH"] = etag_for("hello somewhere else")
+    get :render_hello_world_from_variable
+    assert_equal "200 OK", @response.headers['Status']
+    assert !@response.body.empty?
+  end
+
+  def test_render_with_etag
+    get :render_hello_world_from_variable
+    expected_etag = etag_for('hello david')
+    assert_equal expected_etag, @response.headers['ETag']
+
+    @request.headers["HTTP_IF_NONE_MATCH"] = expected_etag
+    get :render_hello_world_from_variable
+    assert_equal "304 Not Modified", @response.headers['Status']
+
+    @request.headers["HTTP_IF_NONE_MATCH"] = "\"diftag\""
+    get :render_hello_world_from_variable
+    assert_equal "200 OK", @response.headers['Status']
+  end
+
+  def render_with_404_shouldnt_have_etag
+    get :render_custom_code
+    assert_nil @response.headers['ETag']
+  end
+
+  def test_etag_should_not_be_changed_when_already_set
+    expected_etag = etag_for("hello somewhere else")
+    @response.headers["ETag"] = expected_etag
+    get :render_hello_world_from_variable
+    assert_equal expected_etag, @response.headers['ETag']
+  end
+
+  def test_etag_should_govern_renders_with_layouts_too
+    get :builder_layout_test
+    assert_equal "<wrapper>\n<html>\n  <p>Hello </p>\n<p>This is grand!</p>\n</html>\n</wrapper>\n", @response.body
+    assert_equal etag_for("<wrapper>\n<html>\n  <p>Hello </p>\n<p>This is grand!</p>\n</html>\n</wrapper>\n"), @response.headers['ETag']
+  end
+
+  def test_should_render_formatted_template
+    get :formatted_html_erb
+    assert_equal 'formatted html erb', @response.body
+  end
+  
+  def test_should_render_formatted_xml_erb_template
+    get :formatted_xml_erb, :format => :xml
+    assert_equal '<test>passed formatted xml erb</test>', @response.body
+  end
+  
+  def test_should_render_formatted_html_erb_template
+    get :formatted_xml_erb
+    assert_equal '<test>passed formatted html erb</test>', @response.body
+  end
+  
+  def test_should_render_formatted_html_erb_template_with_faulty_accepts_header
+    @request.env["HTTP_ACCEPT"] = "image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, appliction/x-shockwave-flash, */*"
+    get :formatted_xml_erb
+    assert_equal '<test>passed formatted html erb</test>', @response.body
+  end
+
+  def test_should_render_html_formatted_partial
+    get :partial
+    assert_equal 'partial html', @response.body
+  end
+
+  def test_should_render_html_partial_with_dot
+    get :partial_dot_html
+    assert_equal 'partial html', @response.body
+  end
+
+  def test_should_render_html_formatted_partial_with_rjs
+    xhr :get, :partial_as_rjs
+    assert_equal %(Element.replace("foo", "partial html");), @response.body
+  end
+
+  def test_should_render_html_formatted_partial_with_rjs_and_js_format
+    xhr :get, :respond_to_partial_as_rjs
+    assert_equal %(Element.replace("foo", "partial html");), @response.body
+  end
+
+  def test_should_render_js_partial
+    xhr :get, :partial, :format => 'js'
+    assert_equal 'partial js', @response.body
+  end
+
   protected
     def assert_deprecated_render(&block)
       assert_deprecated(/render/, &block)
+    end
+
+    def etag_for(text)
+      %("#{Digest::MD5.hexdigest(text)}")
     end
 end

@@ -2,8 +2,9 @@ class <%= migration_name %> < ActiveRecord::Migration
   def self.up
     create_table :<%= table_name %> do |t|
 <% for attribute in attributes -%>
-      t.column :<%= attribute.name %>, :<%= attribute.type %>
-<% end -%>
+      t.<%= attribute.type %> :<%= attribute.name %>
+<% end %>
+      t.timestamps 
     end
   end
 

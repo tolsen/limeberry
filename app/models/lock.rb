@@ -154,7 +154,7 @@ class Lock < ActiveRecord::Base
       xml.D(:depth, (depth == 'I') ? 'infinity' : '0')
       xml.D :owner do
         xml << owner_info
-      end
+      end unless owner_info.nil?
       xml.D(:timeout, "Second-#{seconds_left}")
       xml.D(:locktoken) { xml.D(:href, locktoken) }
       xml.D :lockroot do

@@ -25,9 +25,7 @@
 # to the appropriate controller and action. It also takes care of resetting
 # the environment (when Dependencies.load? is true) after each request.
 class Dispatcher
-  
   class << self
-
     # Dispatch the given CGI request, using the given session options, and
     # emitting the output via the given output.  If you dispatch with your
     # own CGI object be sure to handle the exceptions it raises on multipart
@@ -41,9 +39,8 @@ class Dispatcher
         controller.process(request, response).out(output)
       end
     rescue Exception => exception  # errors from CGI dispatch
-      failsafe_response(output, '500 Internal Server Error', exception) do
-        controller ||= ApplicationController rescue LoadError nil
-        controller ||= ActionController::Base
+      failsafe_response(cgi, output, '500 Internal Server Error', exception) do
+        controller ||= (ApplicationController rescue ActionController::Base)
         controller.process_with_exception(request, response, exception).out(output)
       end
     ensure
@@ -89,15 +86,14 @@ class Dispatcher
     end
 
     private
+      attr_accessor_with_default :preparation_callbacks, []
+      attr_accessor_with_default :preparation_callbacks_run, false
 
-      attr_accessor :preparation_callbacks, :preparation_callbacks_run
-      alias_method :preparation_callbacks_run?, :preparation_callbacks_run
-      
       # CGI.new plus exception handling.  CGI#read_multipart raises EOFError
       # if body.empty? or body.size != Content-Length and raises ArgumentError
       # if Content-Length is non-integer.
       def new_cgi(output)
-        failsafe_response(output, '400 Bad Request') { CGI.new }
+        failsafe_response(nil, output, '400 Bad Request') { CGI.new }
       end
 
       def prepare_application
@@ -106,7 +102,6 @@ class Dispatcher
           self.preparation_callbacks_run = false
         end
 
-        prepare_breakpoint
         require_dependency 'application' unless Object.const_defined?(:ApplicationController)
         ActiveRecord::Base.verify_active_connections! if defined?(ActiveRecord)
         run_preparation_callbacks
@@ -114,58 +109,69 @@ class Dispatcher
 
       def reset_after_dispatch
         reset_application! if Dependencies.load?
-        Breakpoint.deactivate_drb if defined?(BREAKPOINT_SERVER_PORT)
-      end
-
-      def prepare_breakpoint
-        return unless defined?(BREAKPOINT_SERVER_PORT)
-        require 'breakpoint'
-        Breakpoint.activate_drb("druby://localhost:#{BREAKPOINT_SERVER_PORT}", nil, !defined?(FastCGI))
-        true
-      rescue
-        nil
       end
 
       def run_preparation_callbacks
-        return if preparation_callbacks_run?
+        return if preparation_callbacks_run
         preparation_callbacks.each { |_, callback| callback.call }
         self.preparation_callbacks_run = true
       end
 
       # If the block raises, send status code as a last-ditch response.
-      def failsafe_response(output, status, exception = nil)
+      def failsafe_response(cgi, fallback_output, status, exception = nil)
         yield
-      rescue Exception  # errors from executed block
+      rescue Exception
         begin
-          output.write "Status: #{status}\r\n"
-          
-          if exception
-            message    = exception.to_s + "\r\n" + exception.backtrace.join("\r\n")
-            error_path = File.join(RAILS_ROOT, 'public', '500.html')
+          log_failsafe_exception(cgi, status, exception)
 
-            if defined?(RAILS_DEFAULT_LOGGER) && !RAILS_DEFAULT_LOGGER.nil?
-              RAILS_DEFAULT_LOGGER.fatal(message)
+          body = failsafe_response_body(status)
+          if cgi
+            head = { 'status' => status, 'type' => 'text/html' }
 
-              output.write "Content-Type: text/html\r\n\r\n"
-
-              if File.exists?(error_path)
-                output.write(IO.read(error_path))
-              else
-                output.write("<html><body><h1>Application error (Rails)</h1></body></html>")
-              end
+            # FIXME: using CGI differently than CGIResponse does breaks
+            # the Mongrel CGI wrapper.
+            if defined?(Mongrel) && cgi.is_a?(Mongrel::CGIWrapper)
+              # FIXME: set a dummy cookie so the Mongrel CGI wrapper will
+              # also consider @output_cookies (used for session cookies.)
+              head['cookie'] = []
+              cgi.header(head)
+              fallback_output << body
             else
-              output.write "Content-Type: text/plain\r\n\r\n"
-              output.write(message)
+              cgi.out(head) { body }
             end
+          else
+            fallback_output.write "Status: #{status}\r\nContent-Type: text/html\r\n\r\n#{body}"
           end
+          nil
         rescue Exception  # Logger or IO errors
         end
       end
+
+      def failsafe_response_body(status)
+        error_path = "#{RAILS_ROOT}/public/#{status[0..3]}.html"
+
+        if File.exists?(error_path)
+          File.read(error_path)
+        else
+          "<html><body><h1>#{status}</h1></body></html>"
+        end
+      end
+
+      def log_failsafe_exception(cgi, status, exception)
+        fell_back = cgi ? 'has cgi' : 'no cgi, fallback ouput'
+        message = "DISPATCHER FAILSAFE RESPONSE (#{fell_back}) #{Time.now}\n  Status: #{status}\n"
+        message << "  #{exception}\n    #{exception.backtrace.join("\n    ")}" if exception
+        failsafe_logger.fatal message
+      end
+
+      def failsafe_logger
+        if defined?(RAILS_DEFAULT_LOGGER) && !RAILS_DEFAULT_LOGGER.nil?
+          RAILS_DEFAULT_LOGGER
+        else
+          Logger.new($stderr)
+        end
+      end
   end
-  
-  self.preparation_callbacks = []
-  self.preparation_callbacks_run = false
-  
 end
 
 Dispatcher.to_prepare :activerecord_instantiate_observers do

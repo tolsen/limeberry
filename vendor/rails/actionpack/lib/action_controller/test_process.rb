@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/assertions'
+require 'action_controller/assertions'
 
 module ActionController #:nodoc:
   class Base
@@ -40,18 +40,15 @@ module ActionController #:nodoc:
       @session = TestSession.new
     end
 
+    # Wraps raw_post in a StringIO.
+    def body
+      StringIO.new(raw_post)
+    end
+
+    # Either the RAW_POST_DATA environment variable or the URL-encoded request
+    # parameters.
     def raw_post
-      if raw_post = env['RAW_POST_DATA']
-        raw_post
-      else
-        params = self.request_parameters.dup
-        %w(controller action only_path).each do |k|
-          params.delete(k)
-          params.delete(k.to_sym)
-        end
-    
-        params.map { |k,v| [ CGI.escape(k.to_s), CGI.escape(v.to_s) ].join('=') }.sort.join('&')
-      end
+      env['RAW_POST_DATA'] ||= url_encoded_request_parameters
     end
 
     def port=(number)
@@ -90,11 +87,11 @@ module ActionController #:nodoc:
     end
 
     def request_uri
-      @request_uri || super()
+      @request_uri || super
     end
 
     def path
-      @path || super()
+      @path || super
     end
 
     def assign_parameters(controller_path, action, parameters)
@@ -124,6 +121,10 @@ module ActionController #:nodoc:
       @request_method, @accepts, @content_type = nil, nil, nil
     end    
 
+    def referer
+      @env["HTTP_REFERER"]
+    end
+
     private
       def initialize_containers
         @env, @cookies = {}, {}
@@ -135,6 +136,17 @@ module ActionController #:nodoc:
         self.remote_addr         = "0.0.0.0"        
         @env["SERVER_PORT"]      = 80
         @env['REQUEST_METHOD']   = "GET"
+      end
+
+      def url_encoded_request_parameters
+        params = self.request_parameters.dup
+
+        %w(controller action only_path).each do |k|
+          params.delete(k)
+          params.delete(k.to_sym)
+        end
+
+        params.to_query
       end
   end
 
@@ -315,29 +327,29 @@ module ActionController #:nodoc:
   class TestUploadedFile
     # The filename, *not* including the path, of the "uploaded" file
     attr_reader :original_filename
-    
+
     # The content type of the "uploaded" file
     attr_reader :content_type
-    
-    def initialize(path, content_type = 'text/plain')
+
+    def initialize(path, content_type = Mime::TEXT)
       raise "#{path} file does not exist" unless File.exist?(path)
       @content_type = content_type
       @original_filename = path.sub(/^.*#{File::SEPARATOR}([^#{File::SEPARATOR}]+)$/) { $1 }
       @tempfile = Tempfile.new(@original_filename)
       FileUtils.copy_file(path, @tempfile.path)
     end
-    
+
     def path #:nodoc:
       @tempfile.path
     end
-    
+
     alias local_path path
-    
+
     def method_missing(method_name, *args, &block) #:nodoc:
       @tempfile.send(method_name, *args, &block)
     end
   end
-  
+
   module TestProcess
     def self.included(base)
       # execute the request simulating a specific http method and set/volley the response

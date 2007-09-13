@@ -1,15 +1,17 @@
 require File.dirname(__FILE__) + '/../abstract_unit'
 
-# The template_root must be set on Base and not LayoutTest so that LayoutTest's inherited method has access to
-# the template_root when looking for a layout
-ActionController::Base.template_root = File.dirname(__FILE__) + '/../fixtures/layout_tests/'
+# The view_paths array must be set on Base and not LayoutTest so that LayoutTest's inherited
+# method has access to the view_paths array when looking for a layout to automatically assign.
+old_load_paths = ActionController::Base.view_paths
+ActionController::Base.view_paths = [ File.dirname(__FILE__) + '/../fixtures/layout_tests/' ]
 
 class LayoutTest < ActionController::Base
   def self.controller_path; 'views' end
+  self.view_paths = ActionController::Base.view_paths.dup
 end
 
-# Restore template root to be unset
-ActionController::Base.template_root = nil
+# Restore view_paths to previous value
+ActionController::Base.view_paths = old_load_paths
 
 class ProductController < LayoutTest
 end
@@ -24,6 +26,9 @@ module ControllerNameSpace
 end
 
 class ControllerNameSpace::NestedController < LayoutTest
+end
+
+class MultipleExtensions < LayoutTest
 end
 
 class MabView
@@ -61,6 +66,7 @@ class LayoutAutoDiscoveryTest < Test::Unit::TestCase
     @controller = ThirdPartyTemplateLibraryController.new
     get :hello
     assert_equal 'layouts/third_party_template_library', @controller.active_layout
+    assert_equal 'layouts/third_party_template_library', @response.layout
     assert_equal 'Mab', @response.body
   end
   
@@ -69,6 +75,13 @@ class LayoutAutoDiscoveryTest < Test::Unit::TestCase
     get :hello
     assert_equal 'layouts/controller_name_space/nested', @controller.active_layout
     assert_equal 'controller_name_space/nested.rhtml hello.rhtml', @response.body
+  end
+  
+  def test_namespaced_controllers_auto_detect_layouts
+    @controller = MultipleExtensions.new
+    get :hello
+    assert_equal 'layouts/multiple_extensions', @controller.active_layout
+    assert_equal 'multiple_extensions.html.erb hello.rhtml', @response.body.strip
   end
 end
 
@@ -108,7 +121,9 @@ class ExemptFromLayoutTest < Test::Unit::TestCase
 
   def test_rhtml_exempt_from_layout_status_should_prevent_layout_render
     ActionController::Base.exempt_from_layout :rhtml
+    
     assert @controller.send(:template_exempt_from_layout?, 'test.rhtml')
+    assert @controller.send(:template_exempt_from_layout?, 'hello.rhtml')
 
     get :hello
     assert_equal 'hello.rhtml', @response.body

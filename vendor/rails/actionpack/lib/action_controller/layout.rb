@@ -64,11 +64,11 @@ module ActionController #:nodoc:
     #
     # If there is a template in <tt>app/views/layouts/</tt> with the same name as the current controller then it will be automatically
     # set as that controller's layout unless explicitly told otherwise. Say you have a WeblogController, for example. If a template named 
-    # <tt>app/views/layouts/weblog.rhtml</tt> or <tt>app/views/layouts/weblog.rxml</tt> exists then it will be automatically set as
-    # the layout for your WeblogController. You can create a layout with the name <tt>application.rhtml</tt> or <tt>application.rxml</tt>
+    # <tt>app/views/layouts/weblog.erb</tt> or <tt>app/views/layouts/weblog.builder</tt> exists then it will be automatically set as
+    # the layout for your WeblogController. You can create a layout with the name <tt>application.erb</tt> or <tt>application.builder</tt>
     # and this will be set as the default controller if there is no layout with the same name as the current controller and there is 
     # no layout explicitly assigned with the +layout+ method. Nested controllers use the same folder structure for automatic layout.
-    # assignment. So an Admin::WeblogController will look for a template named <tt>app/views/layouts/admin/weblog.rhtml</tt>.
+    # assignment. So an Admin::WeblogController will look for a template named <tt>app/views/layouts/admin/weblog.erb</tt>.
     # Setting a layout explicitly will always override the automatic behaviour for the controller where the layout is set.
     # Explicitly setting the layout in a parent class, though, will not override the child class's layout assignement if the child
     # class has a layout with the same name. 
@@ -179,16 +179,18 @@ module ActionController #:nodoc:
       def default_layout #:nodoc:
         @default_layout ||= read_inheritable_attribute("layout")
       end
-
+      
+      def layout_list #:nodoc:
+        view_paths.collect do |path|
+          Dir["#{path}/layouts/**/*"]
+        end.flatten
+      end
+      
       private
         def inherited_with_layout(child)
           inherited_without_layout(child)
           layout_match = child.name.underscore.sub(/_controller$/, '').sub(/^controllers\//, '')
-          child.layout(layout_match) unless layout_list.grep(%r{layouts/#{layout_match}\.[a-z][0-9a-z]*$}).empty?
-        end
-
-        def layout_list
-          Dir.glob("#{template_root}/layouts/**/*")
+          child.layout(layout_match) unless child.layout_list.grep(%r{layouts/#{layout_match}(\.[a-z][0-9a-z]*)+$}).empty?
         end
 
         def add_layout_conditions(conditions)
@@ -212,7 +214,6 @@ module ActionController #:nodoc:
     # weblog/standard, but <tt>layout "standard"</tt> will return layouts/standard.
     def active_layout(passed_layout = nil)
       layout = passed_layout || self.class.default_layout
-
       active_layout = case layout
         when String then layout
         when Symbol then send(layout)
@@ -231,34 +232,35 @@ module ActionController #:nodoc:
       end
     end
 
-    def render_with_a_layout(options = nil, deprecated_status = nil, deprecated_layout = nil, &block) #:nodoc:
-      template_with_options = options.is_a?(Hash)
+    protected
+      def render_with_a_layout(options = nil, deprecated_status = nil, deprecated_layout = nil, &block) #:nodoc:
+        template_with_options = options.is_a?(Hash)
 
-      if apply_layout?(template_with_options, options) && (layout = pick_layout(template_with_options, options, deprecated_layout))
-        assert_existence_of_template_file(layout)
+        if apply_layout?(template_with_options, options) && (layout = pick_layout(template_with_options, options, deprecated_layout))
+          assert_existence_of_template_file(layout)
 
-        options = options.merge :layout => false if template_with_options
-        logger.info("Rendering #{options} within #{layout}") if logger
+          options = options.merge :layout => false if template_with_options
+          logger.info("Rendering template within #{layout}") if logger
 
-        if template_with_options
-          content_for_layout = render_with_no_layout(options, &block)
-          deprecated_status = options[:status] || deprecated_status
+          if template_with_options
+            content_for_layout = render_with_no_layout(options, &block)
+            deprecated_status = options[:status] || deprecated_status
+          else
+            content_for_layout = render_with_no_layout(options, deprecated_status, &block)
+          end
+
+          erase_render_results
+          add_variables_to_assigns
+          @template.instance_variable_set("@content_for_layout", content_for_layout)
+          response.layout = layout
+          render_text(@template.render_file(layout, true), deprecated_status)
         else
-          content_for_layout = render_with_no_layout(options, deprecated_status, &block)
+          render_with_no_layout(options, deprecated_status, &block)
         end
-
-        erase_render_results
-        add_variables_to_assigns
-        @template.instance_variable_set("@content_for_layout", content_for_layout)
-        response.layout = layout
-        render_text(@template.render_file(layout, true), deprecated_status)
-      else
-        render_with_no_layout(options, deprecated_status, &block)
       end
-    end
+
 
     private
-    
       def apply_layout?(template_with_options, options)
         return false if options == :update
         template_with_options ?  candidate_for_layout?(options) : !template_exempt_from_layout?
@@ -305,9 +307,10 @@ module ActionController #:nodoc:
       # Does a layout directory for this class exist?
       # we cache this info in a class level hash
       def layout_directory?(layout_name)
-        template_path = File.join(self.class.view_root, 'layouts', layout_name)
-        dirname = File.dirname(template_path)
-        self.class.send(:layout_directory_exists_cache)[dirname]
+        view_paths.find do |path| 
+          next unless template_path = Dir[File.join(path, 'layouts', layout_name) + ".*"].first
+          self.class.send(:layout_directory_exists_cache)[File.dirname(template_path)]
+        end
       end
   end
 end

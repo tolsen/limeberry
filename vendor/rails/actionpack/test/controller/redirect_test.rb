@@ -1,14 +1,29 @@
 require File.dirname(__FILE__) + '/../abstract_unit'
 
+class WorkshopsController < ActionController::Base
+end
+
+class Workshop
+  attr_accessor :id, :new_record
+
+  def initialize(id, new_record)
+    @id, @new_record = id, new_record
+  end
+  
+  def new_record?
+    @new_record
+  end
+  
+  def to_s
+    id.to_s
+  end
+end
+
 class RedirectController < ActionController::Base
   def simple_redirect
     redirect_to :action => "hello_world"
   end
-  
-  def method_redirect
-    redirect_to :dashbord_url, 1, "hello"
-  end
-  
+
   def host_redirect
     redirect_to :action => "other_host", :only_path => false, :host => 'other.test.host'
   end
@@ -24,6 +39,14 @@ class RedirectController < ActionController::Base
 
   def redirect_to_back
     redirect_to :back
+  end
+
+  def redirect_to_existing_record
+    redirect_to Workshop.new(5, false)
+  end
+
+  def redirect_to_new_record
+    redirect_to Workshop.new(5, true)
   end
 
   def rescue_errors(e) raise e end
@@ -47,12 +70,6 @@ class RedirectTest < Test::Unit::TestCase
     get :simple_redirect
     assert_response :redirect
     assert_equal "http://test.host/redirect/hello_world", redirect_to_url
-  end
-
-  def test_redirect_with_method_reference_and_parameters
-    assert_deprecated(/redirect_to/) { get :method_redirect }
-    assert_response :redirect
-    assert_equal "http://test.host/redirect/dashboard/1?message=hello", redirect_to_url
   end
 
   def test_simple_redirect_using_options
@@ -107,6 +124,19 @@ class RedirectTest < Test::Unit::TestCase
       get :redirect_to_back
     }
   end
+  
+  def test_redirect_to_record
+    ActionController::Routing::Routes.draw do |map|
+      map.resources :workshops
+      map.connect ':controller/:action/:id'
+    end
+    
+    get :redirect_to_existing_record
+    assert_equal "http://test.host/workshops/5", redirect_to_url
+
+    get :redirect_to_new_record
+    assert_equal "http://test.host/workshops", redirect_to_url
+  end
 end
 
 module ModuleTest
@@ -122,19 +152,13 @@ module ModuleTest
       @request    = ActionController::TestRequest.new
       @response   = ActionController::TestResponse.new
     end
-  
+
     def test_simple_redirect
       get :simple_redirect
       assert_response :redirect
       assert_equal "http://test.host/module_test/module_redirect/hello_world", redirect_to_url
     end
-  
-    def test_redirect_with_method_reference_and_parameters
-      assert_deprecated(/redirect_to/) { get :method_redirect }
-      assert_response :redirect
-      assert_equal "http://test.host/module_test/module_redirect/dashboard/1?message=hello", redirect_to_url
-    end
-    
+
     def test_simple_redirect_using_options
       get :host_redirect
       assert_response :redirect

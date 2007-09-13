@@ -85,12 +85,13 @@ module ActiveRecord
 
   module ConnectionAdapters
     class MysqlColumn < Column #:nodoc:
-      TYPES_ALLOWING_EMPTY_STRING_DEFAULT = Set.new([:binary, :string, :text])
+      TYPES_DISALLOWING_DEFAULT = Set.new([:binary, :text])
+      TYPES_ALLOWING_EMPTY_STRING_DEFAULT = Set.new([:string])
 
       def initialize(name, default, sql_type = nil, null = true)
         @original_default = default
         super
-        @default = nil if missing_default_forged_as_empty_string?
+        @default = nil if no_default_allowed? || missing_default_forged_as_empty_string?
       end
 
       private
@@ -102,13 +103,18 @@ module ActiveRecord
 
         # MySQL misreports NOT NULL column default when none is given.
         # We can't detect this for columns which may have a legitimate ''
-        # default (string, text, binary) but we can for others (integer,
-        # datetime, boolean, and the rest).
+        # default (string) but we can for others (integer, datetime, boolean,
+        # and the rest).
         #
         # Test whether the column has default '', is not null, and is not
         # a type allowing default ''.
         def missing_default_forged_as_empty_string?
           !null && @original_default == '' && !TYPES_ALLOWING_EMPTY_STRING_DEFAULT.include?(type)
+        end
+
+        # MySQL 5.0 does not allow text and binary columns to have defaults
+        def no_default_allowed?
+          TYPES_DISALLOWING_DEFAULT.include?(type)
         end
     end
 
@@ -123,6 +129,7 @@ module ActiveRecord
     # * <tt>:username</tt> -- Defaults to root
     # * <tt>:password</tt> -- Defaults to nothing
     # * <tt>:database</tt> -- The name of the database. No default, must be provided.
+    # * <tt>:encoding</tt> -- (Optional) Sets the client encoding by executing "SET NAMES <encoding>" after connection
     # * <tt>:sslkey</tt> -- Necessary to use MySQL with an SSL connection
     # * <tt>:sslcert</tt> -- Necessary to use MySQL with an SSL connection
     # * <tt>:sslcapath</tt> -- Necessary to use MySQL with an SSL connection
@@ -202,7 +209,7 @@ module ActiveRecord
       def quoted_true
         "1"
       end
-      
+
       def quoted_false
         "0"
       end
@@ -231,7 +238,7 @@ module ActiveRecord
         disconnect!
         connect
       end
-      
+
       def disconnect!
         @connection.close rescue nil
       end
@@ -297,7 +304,7 @@ module ActiveRecord
         else
           sql = "SHOW TABLES"
         end
-        
+
         select_all(sql).inject("") do |structure, table|
           table.delete('Table_type')
           structure += select_one("SHOW CREATE TABLE #{table.to_a.first.last}")["Create Table"] + ";\n\n"
@@ -309,16 +316,37 @@ module ActiveRecord
         create_database(name)
       end
 
-      def create_database(name) #:nodoc:
-        execute "CREATE DATABASE `#{name}`"
+      # Create a new MySQL database with optional :charset and :collation.
+      # Charset defaults to utf8.
+      #
+      # Example:
+      #   create_database 'charset_test', :charset => 'latin1', :collation => 'latin1_bin'
+      #   create_database 'matt_development'
+      #   create_database 'matt_development', :charset => :big5
+      def create_database(name, options = {})
+        if options[:collation]
+          execute "CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}` COLLATE `#{options[:collation]}`"
+        else
+          execute "CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}`"
+        end
       end
-      
+
       def drop_database(name) #:nodoc:
         execute "DROP DATABASE IF EXISTS `#{name}`"
       end
 
       def current_database
-        select_one("SELECT DATABASE() as db")["db"]
+        select_value 'SELECT DATABASE() as db'
+      end
+
+      # Returns the database character set.
+      def charset
+        show_variable 'character_set_database'
+      end
+
+      # Returns the database collation strategy.
+      def collation
+        show_variable 'collation_database'
       end
 
       def tables(name = nil) #:nodoc:
@@ -352,15 +380,15 @@ module ActiveRecord
       def create_table(name, options = {}) #:nodoc:
         super(name, {:options => "ENGINE=InnoDB"}.merge(options))
       end
-      
+
       def rename_table(name, new_name)
         execute "RENAME TABLE #{name} TO #{new_name}"
-      end  
+      end
 
       def change_column_default(table_name, column_name, default) #:nodoc:
         current_type = select_one("SHOW COLUMNS FROM #{table_name} LIKE '#{column_name}'")["Type"]
 
-        execute("ALTER TABLE #{table_name} CHANGE #{column_name} #{column_name} #{current_type} DEFAULT #{quote(default)}")
+        execute("ALTER TABLE #{table_name} CHANGE #{quote_column_name(column_name)} #{quote_column_name(column_name)} #{current_type} DEFAULT #{quote(default)}")
       end
 
       def change_column(table_name, column_name, type, options = {}) #:nodoc:
@@ -368,16 +396,22 @@ module ActiveRecord
           options[:default] = select_one("SHOW COLUMNS FROM #{table_name} LIKE '#{column_name}'")["Default"]
         end
 
-        change_column_sql = "ALTER TABLE #{table_name} CHANGE #{column_name} #{column_name} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
+        change_column_sql = "ALTER TABLE #{table_name} CHANGE #{quote_column_name(column_name)} #{quote_column_name(column_name)} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
         add_column_options!(change_column_sql, options)
         execute(change_column_sql)
       end
 
       def rename_column(table_name, column_name, new_column_name) #:nodoc:
         current_type = select_one("SHOW COLUMNS FROM #{table_name} LIKE '#{column_name}'")["Type"]
-        execute "ALTER TABLE #{table_name} CHANGE #{column_name} #{new_column_name} #{current_type}"
+        execute "ALTER TABLE #{table_name} CHANGE #{quote_column_name(column_name)} #{quote_column_name(new_column_name)} #{current_type}"
       end
 
+
+      # SHOW VARIABLES LIKE 'name'
+      def show_variable(name)
+        variables = select_all("SHOW VARIABLES LIKE '#{name}'")
+        variables.first['Value'] unless variables.empty?
+      end
 
       private
         def connect

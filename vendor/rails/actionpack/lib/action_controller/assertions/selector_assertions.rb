@@ -4,7 +4,7 @@
 #++
 
 require 'rexml/document'
-require File.dirname(__FILE__) + "/../vendor/html-scanner/html/document"
+require 'html/document'
 
 module ActionController
   module Assertions
@@ -196,7 +196,7 @@ module ActionController
           # Otherwise just operate on the response document.
           root = response_from_page_or_rjs
         end
-
+        
         # First or second argument is the selector: string and we pass
         # all remaining arguments. Array and we pass the argument. Also
         # accepts selector itself.
@@ -209,7 +209,7 @@ module ActionController
             selector = arg
           else raise ArgumentError, "Expecting a selector as the first argument"
         end
-
+        
         # Next argument is used for equality tests.
         equals = {}
         case arg = args.shift
@@ -277,14 +277,10 @@ module ActionController
         # found one but expecting two.
         message ||= content_mismatch if matches.empty?
         # Test minimum/maximum occurrence.
-        if equals[:minimum]
-          assert matches.size >= equals[:minimum], message ||
-             "Expected at least #{equals[:minimum]} elements, found #{matches.size}."
-        end
-        if equals[:maximum]
-          assert matches.size <= equals[:maximum], message ||
-            "Expected at most #{equals[:maximum]} elements, found #{matches.size}."
-        end
+        min, max = equals[:minimum], equals[:maximum]
+        message = message || %(Expected #{count_description(min, max)} matching "#{selector.to_s}", found #{matches.size}.)
+        assert matches.size >= min, message if min
+        assert matches.size <= max, message if max
 
         # If a block is given call that block. Set @selected to allow
         # nested assert_select, which can be nested several levels deep.
@@ -300,7 +296,19 @@ module ActionController
         # Returns all matches elements.
         matches
       end
-
+      
+      def count_description(min, max) #:nodoc:
+        pluralize = lambda {|word, quantity| word << (quantity == 1 ? '' : 's')}
+        
+        if min && max && (max != min)
+          "between #{min} and #{max} elements"
+        elsif min && !(min == 1 && max == 1)
+          "at least #{min} #{pluralize['element', min]}"
+        elsif max
+          "at most #{max} #{pluralize['element', max]}"
+        end
+      end
+      
       # :call-seq:
       #   assert_select_rjs(id?) { |elements| ... }
       #   assert_select_rjs(statement, id?) { |elements| ... }
@@ -317,12 +325,15 @@ module ActionController
       # that update or insert an element with that identifier.
       #
       # Use the first argument to narrow down assertions to only statements
-      # of that type. Possible values are +:replace+, +:replace_html+ and
-      # +:insert_html+.
+      # of that type. Possible values are +:replace+, +:replace_html+, +:show+,
+      # +:hide+, +:toggle+, +:remove+ and +:insert_html+.
       #
       # Use the argument +:insert+ followed by an insertion position to narrow
       # down the assertion to only statements that insert elements in that
       # position. Possible values are +:top+, +:bottom+, +:before+ and +:after+.
+      #
+      # Using the +:remove+ statement, you will be able to pass a block, but it will
+      # be ignored as there is no HTML passed for this statement.
       #
       # === Using blocks
       #
@@ -351,6 +362,9 @@ module ActionController
       #
       #   # Inserting into the element bar, top position.
       #   assert_select_rjs :insert, :top, "bar"
+      #
+      #   # Remove the element bar
+      #   assert_select_rjs :remove, "bar"
       #
       #   # Changing the element foo, with an image.
       #   assert_select_rjs "foo" do
@@ -400,20 +414,27 @@ module ActionController
           case rjs_type
             when :chained_replace, :chained_replace_html
               Regexp.new("\\$\\(\"#{id}\"\\)#{statement}\\(#{RJS_PATTERN_HTML}\\)", Regexp::MULTILINE)
+            when :remove, :show, :hide, :toggle
+              Regexp.new("#{statement}\\(\"#{id}\"\\)")
             else
               Regexp.new("#{statement}\\(\"#{id}\", #{RJS_PATTERN_HTML}\\)", Regexp::MULTILINE)
           end
 
         # Duplicate the body since the next step involves destroying it.
         matches = nil
-        @response.body.gsub(pattern) do |match|
-          html = unescape_rjs($2)
-          matches ||= []
-          matches.concat HTML::Document.new(html).root.children.select { |n| n.tag? }
-          ""
+        case rjs_type
+          when :remove, :show, :hide, :toggle
+            matches = @response.body.match(pattern)
+          else
+            @response.body.gsub(pattern) do |match|
+              html = unescape_rjs($2)
+              matches ||= []
+              matches.concat HTML::Document.new(html).root.children.select { |n| n.tag? }
+              ""
+            end
         end
         if matches
-          if block_given?
+          if block_given? && !([:remove, :show, :hide, :toggle].include? rjs_type)
             begin
               in_scope, @selected = @selected, matches
               yield matches
@@ -519,6 +540,10 @@ module ActionController
             :replace_html         => /Element\.update/,
             :chained_replace      => /\.replace/,
             :chained_replace_html => /\.update/,
+            :remove               => /Element\.remove/,
+            :show                 => /Element\.show/,
+            :hide                 => /Element\.hide/,
+            :toggle                 => /Element\.toggle/
           }
           RJS_INSERTIONS = [:top, :bottom, :before, :after]
           RJS_INSERTIONS.each do |insertion|
@@ -537,7 +562,7 @@ module ActionController
         # #assert_select and #css_select call this to obtain the content in the HTML
         # page, or from all the RJS statements, depending on the type of response.
         def response_from_page_or_rjs()
-          content_type = @response.headers["Content-Type"]
+          content_type = @response.content_type
           if content_type && content_type =~ /text\/javascript/
             body = @response.body.dup
             root = HTML::Node.new(nil)
@@ -561,6 +586,8 @@ module ActionController
           # RJS encodes double quotes and line breaks.
           unescaped= rjs_string.gsub('\"', '"')
           unescaped.gsub!('\n', "\n")
+          unescaped.gsub!('\076', '>')
+          unescaped.gsub!('\074', '<')
           # RJS encodes non-ascii characters.
           unescaped.gsub!(RJS_PATTERN_UNICODE_ESCAPED_CHAR) {|u| [$1.hex].pack('U*')}
           unescaped

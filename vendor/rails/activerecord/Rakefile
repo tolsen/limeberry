@@ -23,18 +23,15 @@ PKG_FILES = FileList[
 
 
 desc "Default Task"
-task :default => [ :test_mysql, :test_sqlite, :test_postgresql ]
+task :default => [ :test_mysql, :test_sqlite, :test_sqlite3, :test_postgresql ]
 
 # Run the unit tests
 
 for adapter in %w( mysql postgresql sqlite sqlite3 firebird sqlserver sqlserver_odbc db2 oracle sybase openbase frontbase )
   Rake::TestTask.new("test_#{adapter}") { |t|
     t.libs << "test" << "test/connections/native_#{adapter}"
-    if adapter =~ /^sqlserver/
-      t.pattern = "test/**/*_test{,_sqlserver}.rb"
-    else
-      t.pattern = "test/**/*_test{,_#{adapter}}.rb"
-    end
+    adapter_short = adapter == 'db2' ? adapter : adapter[/^[a-z]+/]
+    t.pattern = "test/**/*_test{,_#{adapter_short}}.rb"
     t.verbose = true
   }
 end
@@ -122,6 +119,7 @@ Rake::RDocTask.new { |rdoc|
   rdoc.rdoc_dir = 'doc'
   rdoc.title    = "Active Record -- Object-relation mapping put on rails"
   rdoc.options << '--line-numbers' << '--inline-source' << '-A cattr_accessor=object'
+  rdoc.options << '--charset' << 'utf-8'
   rdoc.template = "#{ENV['template']}.rb" if ENV['template']
   rdoc.rdoc_files.include('README', 'RUNNING_UNIT_TESTS', 'CHANGELOG')
   rdoc.rdoc_files.include('lib/**/*.rb')

@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/../abstract_unit'
+require "#{File.dirname(__FILE__)}/../abstract_unit"
 require "#{File.dirname(__FILE__)}/../testing_sandbox"
 
 class TextHelperTest < Test::Unit::TestCase
@@ -29,6 +29,11 @@ class TextHelperTest < Test::Unit::TestCase
   def test_truncate
     assert_equal "Hello World!", truncate("Hello World!", 12)
     assert_equal "Hello Wor...", truncate("Hello World!!", 12)
+  end
+
+  def test_truncate_should_use_default_length_of_30
+    str = "This is a string that will go longer then the default truncate length of 30"
+    assert_equal str[0...27] + "...", truncate(str)
   end
 
   def test_truncate_multibyte
@@ -65,6 +70,8 @@ class TextHelperTest < Test::Unit::TestCase
       "This text is not changed because we supplied an empty phrase",
       highlight("This text is not changed because we supplied an empty phrase", nil)
     )
+
+    assert_equal '   ', highlight('   ', 'blank text is returned verbatim')
   end
 
   def test_highlighter_with_regexp
@@ -82,6 +89,10 @@ class TextHelperTest < Test::Unit::TestCase
       "This is a <strong class=\"highlight\">beautiful? morning</strong>",
       highlight("This is a beautiful? morning", "beautiful? morning")
     )
+  end
+
+  def test_highlighting_multiple_phrases_in_one_pass
+    assert_equal %(<em>wow</em> <em>em</em>), highlight('wow em', %w(wow em), '<em>\1</em>')
   end
 
   def test_excerpt
@@ -117,6 +128,20 @@ class TextHelperTest < Test::Unit::TestCase
     assert_equal("1,066 counts", pluralize('1,066', "count"))
     assert_equal("1.25 counts", pluralize('1.25', "count"))
     assert_equal("2 counters", pluralize(2, "count", "counters"))
+    assert_equal("0 counters", pluralize(nil, "count", "counters"))
+    assert_equal("2 people", pluralize(2, "person"))
+    assert_equal("10 buffaloes", pluralize(10, "buffalo")) 
+  end
+
+  uses_mocha("should_just_add_s_for_pluralize_without_inflector_loaded") do
+    def test_should_just_add_s_for_pluralize_without_inflector_loaded
+      Object.expects(:const_defined?).with("Inflector").times(4).returns(false)
+      assert_equal("1 count", pluralize(1, "count"))
+      assert_equal("2 persons", pluralize(2, "person"))
+      assert_equal("2 personss", pluralize("2", "persons"))
+      assert_equal("2 counts", pluralize(2, "count"))
+      assert_equal("10 buffalos", pluralize(10, "buffalo"))
+    end
   end
 
   def test_auto_link_parsing
@@ -233,7 +258,7 @@ class TextHelperTest < Test::Unit::TestCase
   def test_sanitize_script
     raw = "<script language=\"Javascript\">blah blah blah</script>"
     result = sanitize(raw)
-    assert_equal %(&lt;script language="Javascript">blah blah blah&lt;/script>), result
+    assert_equal %{&lt;script language="Javascript">blah blah blah&lt;/script>}, result
   end
 
   def test_sanitize_js_handlers

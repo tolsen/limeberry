@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/tag_helper'
+require 'action_view/helpers/tag_helper'
 
 module ActionView
   module Helpers
@@ -139,6 +139,8 @@ module ActionView
       # <tt>:select</tt>::               Pick the class of the element from which the value for 
       #                                  insertion should be extracted. If this is not specified,
       #                                  the entire element is used.
+      # <tt>:method</tt>::               Specifies the HTTP verb to use when the autocompletion
+      #                                  request is made. Defaults to POST.
       def auto_complete_field(field_id, options = {})
         function =  "var #{field_id}_auto_completer = new Ajax.Autocompleter("
         function << "'#{field_id}', "
@@ -152,6 +154,7 @@ module ActionView
         js_options[:select]     = "'#{options[:select]}'" if options[:select]
         js_options[:paramName]  = "'#{options[:param_name]}'" if options[:param_name]
         js_options[:frequency]  = "#{options[:frequency]}" if options[:frequency]
+        js_options[:method]     = "'#{options[:method].to_s}'" if options[:method]
 
         { :after_update_element => :afterUpdateElement, 
           :on_show => :onShow, :on_hide => :onHide, :min_chars => :minChars }.each do |k,v|
@@ -198,10 +201,10 @@ module ActionView
         content_tag("div", "", :id => "#{object}_#{method}_auto_complete", :class => "auto_complete") +
         auto_complete_field("#{object}_#{method}", { :url => { :action => "auto_complete_for_#{object}_#{method}" } }.update(completion_options))
       end
-      
+
       private
         def auto_complete_stylesheet
-          content_tag('style', <<-EOT, :type => 'text/css')
+          content_tag('style', <<-EOT, :type => Mime::CSS)
             div.auto_complete {
               width: 350px;
               background: #fff;
@@ -217,17 +220,17 @@ module ActionView
               margin:0;
               padding:3px;
             }
-            div.auto_complete ul li.selected { 
-              background-color: #ffb; 
+            div.auto_complete ul li.selected {
+              background-color: #ffb;
             }
-            div.auto_complete ul strong.highlight { 
+            div.auto_complete ul strong.highlight {
               color: #800; 
               margin:0;
               padding:0;
             }
           EOT
         end
-      
+
     end
   end
 end

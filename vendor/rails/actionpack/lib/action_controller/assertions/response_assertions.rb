@@ -1,5 +1,5 @@
 require 'rexml/document'
-require File.dirname(__FILE__) + "/../vendor/html-scanner/html/document"
+require 'html/document'
 
 module ActionController
   module Assertions
@@ -78,7 +78,6 @@ module ActionController
               url[key] = value
             end
 
-
             @response_diff = url[:expected].diff(url[:actual]) if url[:actual]
             msg = build_message(message, "response is not a redirection to all of the options supplied (redirection is <?>), difference: <?>",
                                 url[:actual], @response_diff)
@@ -120,6 +119,7 @@ module ActionController
       end
 
       private
+        # Recognizes the route for a given path.
         def recognized_request_for(path, request_method = nil)
           path = "/#{path}" unless path.first == '/'
 
@@ -132,6 +132,7 @@ module ActionController
           request
         end
 
+        # Proxy to to_param if the object will respond to it.
         def parameterize(value)
           value.respond_to?(:to_param) ? value.to_param : value
         end

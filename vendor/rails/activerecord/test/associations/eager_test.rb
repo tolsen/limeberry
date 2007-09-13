@@ -168,6 +168,12 @@ class EagerAssociationTest < Test::Unit::TestCase
     posts = Post.find(:all, :include => [ :author, :comments ], :limit => 2, :conditions => "posts.title = 'magic forest'")
     assert_equal 0, posts.size
   end
+  
+  def test_eager_count_performed_on_a_has_many_association_with_multi_table_conditional
+    author = authors(:david)
+    author_posts_without_comments = author.posts.select { |post| post.comments.blank? }
+    assert_equal author_posts_without_comments.size, author.posts.count(:all, :include => :comments, :conditions => 'comments.id is null')
+  end
 
   def test_eager_with_has_and_belongs_to_many_and_limit
     posts = Post.find(:all, :include => :categories, :order => "posts.id", :limit => 3)
@@ -271,6 +277,13 @@ class EagerAssociationTest < Test::Unit::TestCase
     assert_not_nil f.account
     assert_equal companies(:first_firm, :reload).account, f.account
   end
+  
+  def test_eager_with_multi_table_conditional_properly_counts_the_records_when_using_size
+    author = authors(:david)
+    posts_with_no_comments = author.posts.select { |post| post.comments.blank? }
+    assert_equal posts_with_no_comments.size, author.posts_with_no_comments.size
+    assert_equal posts_with_no_comments, author.posts_with_no_comments
+  end
 
   def test_eager_with_invalid_association_reference
     assert_raises(ActiveRecord::ConfigurationError, "Association was not found; perhaps you misspelled it?  You specified :include => :monkeys") {
@@ -292,13 +305,13 @@ class EagerAssociationTest < Test::Unit::TestCase
   end
   
   def test_limited_eager_with_order
-    assert_equal [posts(:thinking), posts(:sti_comments)], Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title)', :limit => 2, :offset => 1)
-    assert_equal [posts(:sti_post_and_comments), posts(:sti_comments)], Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title) DESC', :limit => 2, :offset => 1)
+    assert_equal posts(:thinking, :sti_comments), Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title)', :limit => 2, :offset => 1)
+    assert_equal posts(:sti_post_and_comments, :sti_comments), Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title) DESC', :limit => 2, :offset => 1)
   end
   
   def test_limited_eager_with_multiple_order_columns
-    assert_equal [posts(:thinking), posts(:sti_comments)], Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title), posts.id', :limit => 2, :offset => 1)
-    assert_equal [posts(:sti_post_and_comments), posts(:sti_comments)], Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title) DESC, posts.id', :limit => 2, :offset => 1)
+    assert_equal posts(:thinking, :sti_comments), Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title), posts.id', :limit => 2, :offset => 1)
+    assert_equal posts(:sti_post_and_comments, :sti_comments), Post.find(:all, :include => [:author, :comments], :conditions => "authors.name = 'David'", :order => 'UPPER(posts.title) DESC, posts.id', :limit => 2, :offset => 1)
   end
 
   def test_eager_with_multiple_associations_with_same_table_has_many_and_habtm

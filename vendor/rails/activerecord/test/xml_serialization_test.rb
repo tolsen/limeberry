@@ -1,6 +1,8 @@
 require 'abstract_unit'
 require 'fixtures/post'
 require 'fixtures/author'
+require 'fixtures/tagging'
+require 'fixtures/comment'
 
 class Contact < ActiveRecord::Base
   # mock out self.columns so no pesky db is needed for these tests
@@ -9,11 +11,14 @@ class Contact < ActiveRecord::Base
     columns << ActiveRecord::ConnectionAdapters::Column.new(name.to_s, default, sql_type.to_s, null)
   end
 
-  column :name,       :string
-  column :age,        :integer
-  column :avatar,     :binary
-  column :created_at, :datetime
-  column :awesome,    :boolean
+  column :name,        :string
+  column :age,         :integer
+  column :avatar,      :binary
+  column :created_at,  :datetime
+  column :awesome,     :boolean
+  column :preferences, :string
+  
+  serialize :preferences
 end
 
 class XmlSerializationTest < Test::Unit::TestCase
@@ -53,11 +58,19 @@ class XmlSerializationTest < Test::Unit::TestCase
     assert_no_match %r{<age},     @xml
     assert_match %r{<created-at}, @xml
   end
+  
+  def test_should_include_yielded_additions
+    @xml = Contact.new.to_xml do |xml|
+      xml.creator "David"
+    end
+
+    assert_match %r{<creator>David</creator>}, @xml
+  end
 end
 
 class DefaultXmlSerializationTest < Test::Unit::TestCase
   def setup
-    @xml = Contact.new(:name => 'aaron stack', :age => 25, :avatar => 'binarydata', :created_at => Time.utc(2006, 8, 1), :awesome => false).to_xml
+    @xml = Contact.new(:name => 'aaron stack', :age => 25, :avatar => 'binarydata', :created_at => Time.utc(2006, 8, 1), :awesome => false, :preferences => { :gem => 'ruby' }).to_xml
   end
 
   def test_should_serialize_string
@@ -80,6 +93,10 @@ class DefaultXmlSerializationTest < Test::Unit::TestCase
   
   def test_should_serialize_boolean
     assert_match %r{<awesome type=\"boolean\">false</awesome>}, @xml
+  end
+  
+  def test_should_serialize_yaml
+    assert_match %r{<preferences type=\"yaml\">--- \n:gem: ruby\n</preferences>}, @xml
   end
 end
 
@@ -109,12 +126,17 @@ class NilXmlSerializationTest < Test::Unit::TestCase
   def test_should_serialize_boolean
     assert_match %r{<awesome type=\"boolean\"></awesome>}, @xml
   end
+  
+  def test_should_serialize_yaml
+    assert_match %r{<preferences type=\"yaml\"></preferences>}, @xml
+  end
 end
 
 class DatabaseConnectedXmlSerializationTest < Test::Unit::TestCase
   fixtures :authors, :posts
   # to_xml used to mess with the hash the user provided which
-  # caused the builder to be reused
+  # caused the builder to be reused.  This meant the document kept
+  # getting appended to.
   def test_passing_hash_shouldnt_reuse_builder
     options = {:include=>:posts}
     david = authors(:david)
@@ -122,4 +144,46 @@ class DatabaseConnectedXmlSerializationTest < Test::Unit::TestCase
     second_xml_size = david.to_xml(options).size
     assert_equal first_xml_size, second_xml_size
   end
+
+  def test_include_uses_association_name
+    xml = authors(:david).to_xml :include=>:hello_posts, :indent => 0
+    assert_match %r{<hello-posts type="array">}, xml
+    assert_match %r{<hello-post type="Post">}, xml
+    assert_match %r{<hello-post type="StiPost">}, xml
+  end
+  
+  def test_methods_are_called_on_object
+    xml = authors(:david).to_xml :methods => :label, :indent => 0
+    assert_match %r{<label>.*</label>}, xml
+  end
+  
+  def test_should_not_call_methods_on_associations_that_dont_respond
+    xml = authors(:david).to_xml :include=>:hello_posts, :methods => :label, :indent => 2
+    assert !authors(:david).hello_posts.first.respond_to?(:label)
+    assert_match %r{^  <label>.*</label>}, xml
+    assert_no_match %r{^      <label>}, xml
+  end
+  
+  def test_should_include_empty_has_many_as_empty_array
+    authors(:david).posts.delete_all    
+    xml = authors(:david).to_xml :include=>:posts, :indent => 2
+    
+    assert_equal [], Hash.from_xml(xml)['author']['posts']
+    assert_match %r{^  <posts type="array"/>}, xml
+  end
+  
+  def test_should_has_many_array_elements_should_include_type_when_different_from_guessed_value
+    xml = authors(:david).to_xml :include=>:posts_with_comments, :indent => 2
+    
+    assert Hash.from_xml(xml)
+    assert_match %r{^  <posts-with-comments type="array">}, xml
+    assert_match %r{^    <posts-with-comment type="Post">}, xml
+    assert_match %r{^    <posts-with-comment type="StiPost">}, xml
+
+    types = Hash.from_xml(xml)['author']['posts_with_comments'].collect {|t| t['type'] }
+    assert types.include?('SpecialPost')
+    assert types.include?('Post')
+    assert types.include?('StiPost')
+  end
+  
 end

@@ -27,7 +27,7 @@ module ActiveRecord #:nodoc:
     # :except options are the same as for the #attributes method.
     # The default is to dasherize all column names, to disable this,
     # set :dasherize to false.  To not have the column type included
-    # in the XML output, set :skip_types to false.
+    # in the XML output, set :skip_types to true.
     #
     # For instance:
     #
@@ -90,6 +90,23 @@ module ActiveRecord #:nodoc:
     #     <abc>def</abc>
     #   </firm>
     #
+    # Alternatively, you can also just yield the builder object as part of the to_xml call:
+    #
+    #   firm.to_xml do |xml|
+    #     xml.creator do
+    #       xml.first_name "David"
+    #       xml.last_name "Heinemeier Hansson"
+    #     end
+    #   end
+    #
+    #   <firm>
+    #     # ... normal attributes as shown above ...
+    #     <creator>
+    #       <first_name>David</first_name>
+    #       <last_name>Heinemeier Hansson</last_name>
+    #     </creator>
+    #   </firm>
+    #
     # You may override the to_xml method in your ActiveRecord::Base
     # subclasses if you need to.  The general form of doing this is
     #
@@ -103,8 +120,9 @@ module ActiveRecord #:nodoc:
     #       end
     #     end
     #   end
-    def to_xml(options = {})
-      XmlSerializer.new(self, options).to_s
+    def to_xml(options = {}, &block)
+      serializer = XmlSerializer.new(self, options)
+      block_given? ? serializer.to_s(&block) : serializer.to_s
     end
   end
 
@@ -160,9 +178,11 @@ module ActiveRecord #:nodoc:
     end
 
     def serializable_method_attributes
-      Array(options[:methods]).collect { |name| MethodAttribute.new(name.to_s, @record) }
+      Array(options[:methods]).inject([]) do |method_attributes, name|
+        method_attributes << MethodAttribute.new(name.to_s, @record) if @record.respond_to?(name.to_s)
+        method_attributes
+      end
     end
-
 
     def add_attributes
       (serializable_attributes + serializable_method_attributes).each do |attribute|
@@ -185,12 +205,19 @@ module ActiveRecord #:nodoc:
           case @record.class.reflect_on_association(association).macro
           when :has_many, :has_and_belongs_to_many
             records = @record.send(association).to_a
-            unless records.empty?
-              tag = records.first.class.to_s.underscore.pluralize
-              tag = tag.dasherize if dasherize?
-
-              builder.tag!(tag) do
-                records.each { |r| r.to_xml(opts.merge(:root => association.to_s.singularize)) }
+            tag = association.to_s
+            tag = tag.dasherize if dasherize?
+            if records.empty?
+              builder.tag!(tag, :type => :array)
+            else
+              builder.tag!(tag, :type => :array) do
+                association_name = association.to_s.singularize
+                records.each do |record| 
+                  record.to_xml opts.merge(
+                    :root => association_name, 
+                    :type => (record.class.to_s.underscore == association_name ? nil : record.class.name)
+                  )
+                end
               end
             end
           when :has_one, :belongs_to
@@ -226,11 +253,16 @@ module ActiveRecord #:nodoc:
       if options[:namespace]
         args << {:xmlns=>options[:namespace]}
       end
+      
+      if options[:type]
+        args << {:type=>options[:type]}
+      end
         
       builder.tag!(*args) do
         add_attributes
         add_includes
         add_procs
+        yield builder if block_given?
       end
     end        
     
@@ -275,7 +307,7 @@ module ActiveRecord #:nodoc:
     
       protected
         def compute_type
-          type = @record.class.columns_hash[name].type
+          type = @record.class.serialized_attributes.has_key?(name) ? :yaml : @record.class.columns_hash[name].type
 
           case type
             when :text

@@ -244,15 +244,18 @@ class Fixtures < YAML::Omap
 
   def self.create_fixtures(fixtures_directory, table_names, class_names = {})
     table_names = [table_names].flatten.map { |n| n.to_s }
-    connection = block_given? ? yield : ActiveRecord::Base.connection
+    connection  = block_given? ? yield : ActiveRecord::Base.connection
+
     ActiveRecord::Base.silence do
       fixtures_map = {}
+
       fixtures = table_names.map do |table_name|
         fixtures_map[table_name] = Fixtures.new(connection, File.split(table_name.to_s).last, class_names[table_name.to_sym], File.join(fixtures_directory, table_name.to_s))
       end               
+
       all_loaded_fixtures.merge! fixtures_map  
 
-      connection.transaction(Thread.current['open_transactions'] == 0) do
+      connection.transaction(Thread.current['open_transactions'].to_i == 0) do
         fixtures.reverse.each { |fixture| fixture.delete_existing_fixtures }
         fixtures.each { |fixture| fixture.insert_fixtures }
 
@@ -287,12 +290,12 @@ class Fixtures < YAML::Omap
 
   def insert_fixtures
     values.each do |fixture|
-      @connection.execute "INSERT INTO #{@table_name} (#{fixture.key_list}) VALUES (#{fixture.value_list})", 'Fixture Insert'
+      @connection.insert_fixture fixture, @table_name
     end
   end
 
-  private
 
+  private
     def read_fixture_files
       if File.file?(yaml_file_path)
         # YAML fixtures
@@ -378,6 +381,8 @@ class Fixture #:nodoc:
   class FormatError < FixtureError#:nodoc:
   end
 
+  attr_reader :class_name
+
   def initialize(fixture, class_name)
     case fixture
       when Hash, YAML::Omap
@@ -412,7 +417,7 @@ class Fixture #:nodoc:
     klass = @class_name.constantize rescue nil
 
     list = @fixture.inject([]) do |fixtures, (key, value)|
-      col = klass.columns_hash[key] if klass.kind_of?(ActiveRecord::Base)
+      col = klass.columns_hash[key] if klass.respond_to?(:ancestors) && klass.ancestors.include?(ActiveRecord::Base)
       fixtures << ActiveRecord::Base.connection.quote(value, col).gsub('[^\]\\n', "\n").gsub('[^\]\\r', "\r")
     end
     list * ', '
@@ -450,7 +455,7 @@ end
 module Test #:nodoc:
   module Unit #:nodoc:
     class TestCase #:nodoc:
-      cattr_accessor :fixture_path
+      class_inheritable_accessor :fixture_path
       class_inheritable_accessor :fixture_table_names
       class_inheritable_accessor :fixture_class_names
       class_inheritable_accessor :use_transactional_fixtures
@@ -472,7 +477,13 @@ module Test #:nodoc:
       end
       
       def self.fixtures(*table_names)
-        table_names = table_names.flatten.map { |n| n.to_s }
+        if table_names.first == :all
+          table_names = Dir["#{fixture_path}/*.yml"] + Dir["#{fixture_path}/*.csv"]
+          table_names.map! { |f| File.basename(f).split('.')[0..-2].join('.') }
+        else
+          table_names = table_names.flatten.map { |n| n.to_s }
+        end
+
         self.fixture_table_names |= table_names
         require_fixture_classes(table_names)
         setup_fixture_accessors(table_names)
@@ -490,18 +501,26 @@ module Test #:nodoc:
         end
       end
 
-      def self.setup_fixture_accessors(table_names=nil)
+      def self.setup_fixture_accessors(table_names = nil)
         (table_names || fixture_table_names).each do |table_name|
-          table_name = table_name.to_s.tr('.','_')
-          define_method(table_name) do |fixture, *optionals|
-            force_reload = optionals.shift
+          table_name = table_name.to_s.tr('.', '_')
+
+          define_method(table_name) do |*fixtures|
+            force_reload = fixtures.pop if fixtures.last == true || fixtures.last == :reload
+
             @fixture_cache[table_name] ||= Hash.new
-            @fixture_cache[table_name][fixture] = nil if force_reload
-            if @loaded_fixtures[table_name][fixture.to_s]
-              @fixture_cache[table_name][fixture] ||= @loaded_fixtures[table_name][fixture.to_s].find
-            else
-              raise StandardError, "No fixture with name '#{fixture}' found for table '#{table_name}'"
+
+            instances = fixtures.map do |fixture|
+              @fixture_cache[table_name].delete(fixture) if force_reload
+
+              if @loaded_fixtures[table_name][fixture.to_s]
+                @fixture_cache[table_name][fixture] ||= @loaded_fixtures[table_name][fixture.to_s].find
+              else
+                raise StandardError, "No fixture with name '#{fixture}' found for table '#{table_name}'"
+              end
             end
+
+            instances.size == 1 ? instances.first : instances
           end
         end
       end

@@ -128,6 +128,9 @@ class TimeExtCalculationsTest < Test::Unit::TestCase
     assert_equal Time.local(2004,6,5,10),  Time.local(2005,6,5,10,0,0).last_year
   end
 
+  def test_next_year
+    assert_equal Time.local(2006,6,5,10), Time.local(2005,6,5,10,0,0).next_year
+  end
 
   def test_ago
     assert_equal Time.local(2005,2,22,10,10,9),  Time.local(2005,2,22,10,10,10).ago(1)
@@ -167,6 +170,8 @@ class TimeExtCalculationsTest < Test::Unit::TestCase
     assert_equal Time.local(2005,2,22,11,10,10), Time.local(2005,2,22,10,10,10).since(3600)
     assert_equal Time.local(2005,2,24,10,10,10), Time.local(2005,2,22,10,10,10).since(86400*2)
     assert_equal Time.local(2005,2,24,11,10,35), Time.local(2005,2,22,10,10,10).since(86400*2 + 3600 + 25)
+    # when out of range of Time, returns a DateTime
+    assert_equal DateTime.civil(2038,1,20,11,59,59), Time.utc(2038,1,18,11,59,59).since(86400*2)
   end
 
   def test_daylight_savings_time_crossings_forward_start
@@ -233,6 +238,7 @@ class TimeExtCalculationsTest < Test::Unit::TestCase
     assert_equal Time.local(2005,6,28,15,15,10), Time.local(2005,2,28,15,15,10).advance(:months => 4)
     assert_equal Time.local(2012,9,28,15,15,10), Time.local(2005,2,28,15,15,10).advance(:years => 7, :months => 7)
     assert_equal Time.local(2013,10,3,15,15,10), Time.local(2005,2,28,15,15,10).advance(:years => 7, :months => 19, :days => 5)
+    assert_equal Time.local(2005,2,28,15,15,10), Time.local(2004,2,29,15,15,10).advance(:years => 1) #leap day plus one year
   end
 
   def test_utc_plus
@@ -240,6 +246,7 @@ class TimeExtCalculationsTest < Test::Unit::TestCase
     assert_equal Time.utc(2005,6,22,15,15,10), Time.utc(2005,2,22,15,15,10).advance(:months => 4)
     assert_equal Time.utc(2012,9,22,15,15,10), Time.utc(2005,2,22,15,15,10).advance(:years => 7, :months => 7)
     assert_equal Time.utc(2013,10,3,15,15,10), Time.utc(2005,2,22,15,15,10).advance(:years => 7, :months => 19, :days => 11)
+    assert_equal Time.utc(2005,2,28,15,15,10), Time.utc(2004,2,29,15,15,10).advance(:years => 1) #leap day plus one year
   end
 
   def test_next_week
@@ -269,17 +276,34 @@ class TimeExtCalculationsTest < Test::Unit::TestCase
   end
 
   def test_to_s
-    time = Time.local(2005, 2, 21, 17, 44, 30)
-    assert_equal "2005-02-21 17:44:30",     time.to_s(:db)
-    assert_equal "21 Feb 17:44",            time.to_s(:short)
-    assert_equal "February 21, 2005 17:44", time.to_s(:long)
-
     time = Time.utc(2005, 2, 21, 17, 44, 30)
+    assert_equal "Mon Feb 21 17:44:30 UTC 2005",    time.to_s
+    assert_equal "2005-02-21 17:44:30",             time.to_s(:db)
+    assert_equal "21 Feb 17:44",                    time.to_s(:short)
+    assert_equal "17:44",                           time.to_s(:time)
+    assert_equal "February 21, 2005 17:44",         time.to_s(:long)
+    assert_equal "February 21st, 2005 17:44",       time.to_s(:long_ordinal)
     assert_equal "Mon, 21 Feb 2005 17:44:30 +0000", time.to_s(:rfc822)
+  end
+
+  def test_custom_date_format
+    Time::DATE_FORMATS[:custom] = '%Y%m%d%H%M%S'
+    assert_equal '20050221143000', Time.local(2005, 2, 21, 14, 30, 0).to_s(:custom)
+    Time::DATE_FORMATS.delete(:custom)
   end
 
   def test_to_date
     assert_equal Date.new(2005, 2, 21), Time.local(2005, 2, 21, 17, 44, 30).to_date
+  end
+
+  def test_to_datetime
+    assert_equal Time.utc(2005, 2, 21, 17, 44, 30).to_datetime, DateTime.civil(2005, 2, 21, 17, 44, 30, 0, 0)
+    with_timezone 'US/Eastern' do
+      assert_equal Time.local(2005, 2, 21, 17, 44, 30).to_datetime, DateTime.civil(2005, 2, 21, 17, 44, 30, Rational(Time.local(2005, 2, 21, 17, 44, 30).utc_offset, 86400), 0)
+    end
+    with_timezone 'NZ' do
+      assert_equal Time.local(2005, 2, 21, 17, 44, 30).to_datetime, DateTime.civil(2005, 2, 21, 17, 44, 30, Rational(Time.local(2005, 2, 21, 17, 44, 30).utc_offset, 86400), 0)
+    end
   end
 
   def test_to_time
@@ -313,6 +337,31 @@ class TimeExtCalculationsTest < Test::Unit::TestCase
     assert_equal 31, Time.days_in_month(12, 2005)
   end
 
+  def test_time_with_datetime_fallback
+    assert_equal Time.time_with_datetime_fallback(:utc, 2005, 2, 21, 17, 44, 30), Time.utc(2005, 2, 21, 17, 44, 30)
+    assert_equal Time.time_with_datetime_fallback(:local, 2005, 2, 21, 17, 44, 30), Time.local(2005, 2, 21, 17, 44, 30)
+    assert_equal Time.time_with_datetime_fallback(:utc, 2039, 2, 21, 17, 44, 30), DateTime.civil(2039, 2, 21, 17, 44, 30, 0, 0)
+    assert_equal Time.time_with_datetime_fallback(:local, 2039, 2, 21, 17, 44, 30), DateTime.civil(2039, 2, 21, 17, 44, 30, DateTime.now.offset, 0)
+    assert_equal Time.time_with_datetime_fallback(:utc, 1900, 2, 21, 17, 44, 30), DateTime.civil(1900, 2, 21, 17, 44, 30, 0, 0)
+    assert_equal Time.time_with_datetime_fallback(:local, 1900, 2, 21, 17, 44, 30), DateTime.civil(1900, 2, 21, 17, 44, 30, DateTime.now.offset, 0)
+    assert_equal Time.time_with_datetime_fallback(:utc, 2005), Time.utc(2005)
+    assert_equal Time.time_with_datetime_fallback(:utc, 2039), DateTime.civil(2039, 1, 1, 0, 0, 0, 0, 0)
+    assert_equal Time.time_with_datetime_fallback(:utc, 2005, 2, 21, 17, 44, 30, 1), Time.utc(2005, 2, 21, 17, 44, 30, 1) #with usec
+    assert_equal Time.time_with_datetime_fallback(:utc, 2039, 2, 21, 17, 44, 30, 1), DateTime.civil(2039, 2, 21, 17, 44, 30, 0, 0)
+  end
+
+  def test_utc_time
+    assert_equal Time.utc_time(2005, 2, 21, 17, 44, 30), Time.utc(2005, 2, 21, 17, 44, 30)
+    assert_equal Time.utc_time(2039, 2, 21, 17, 44, 30), DateTime.civil(2039, 2, 21, 17, 44, 30, 0, 0)
+    assert_equal Time.utc_time(1901, 2, 21, 17, 44, 30), DateTime.civil(1901, 2, 21, 17, 44, 30, 0, 0)
+  end
+
+  def test_local_time
+    assert_equal Time.local_time(2005, 2, 21, 17, 44, 30), Time.local(2005, 2, 21, 17, 44, 30)
+    assert_equal Time.local_time(2039, 2, 21, 17, 44, 30), DateTime.civil(2039, 2, 21, 17, 44, 30, DateTime.now.offset, 0)
+    assert_equal Time.local_time(1901, 2, 21, 17, 44, 30), DateTime.civil(1901, 2, 21, 17, 44, 30, DateTime.now.offset, 0)
+  end
+
   def test_next_month_on_31st
     assert_equal Time.local(2005, 9, 30), Time.local(2005, 8, 31).next_month
   end
@@ -323,6 +372,10 @@ class TimeExtCalculationsTest < Test::Unit::TestCase
 
   def test_xmlschema_is_available
     assert_nothing_raised { Time.now.xmlschema }
+  end
+
+  def test_acts_like_time
+    assert Time.new.acts_like_time?
   end
 
   protected

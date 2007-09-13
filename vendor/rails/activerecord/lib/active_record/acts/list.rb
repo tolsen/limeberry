@@ -5,8 +5,8 @@ module ActiveRecord
         base.extend(ClassMethods)
       end
       
-      # This act provides the capabilities for sorting and reordering a number of objects in a list.
-      # The class that has this specified needs to have a "position" column defined as an integer on
+      # This +acts_as+ extension provides the capabilities for sorting and reordering a number of objects in a list.
+      # The class that has this specified needs to have a +position+ column defined as an integer on
       # the mapped database table.
       #
       # Todo list example:
@@ -25,9 +25,9 @@ module ActiveRecord
       module ClassMethods
         # Configuration options are:
         #
-        # * +column+ - specifies the column name to use for keeping the position integer (default: position)
-        # * +scope+ - restricts what is to be considered a list. Given a symbol, it'll attach "_id" 
-        #   (if that hasn't been already) and use that as the foreign key restriction. It's also possible 
+        # * +column+ - specifies the column name to use for keeping the position integer (default: +position+)
+        # * +scope+ - restricts what is to be considered a list. Given a symbol, it'll attach <tt>_id</tt> 
+        #   (if it hasn't already been added) and use that as the foreign key restriction. It's also possible 
         #   to give it an entire string that is interpolated if you need a tighter scope than just a foreign key.
         #   Example: <tt>acts_as_list :scope => 'todo_list_id = #{todo_list_id} AND completed = 0'</tt>
         def acts_as_list(options = {})
@@ -71,9 +71,10 @@ module ActiveRecord
         
       # All the methods available to a record that has had <tt>acts_as_list</tt> specified. Each method works
       # by assuming the object to be the item in the list, so <tt>chapter.move_lower</tt> would move that chapter
-      # lower in the list of all chapters. Likewise, <tt>chapter.first?</tt> would return true if that chapter is
+      # lower in the list of all chapters. Likewise, <tt>chapter.first?</tt> would return +true+ if that chapter is
       # the first in the list of all chapters.
       module InstanceMethods
+        # Insert the item at the given position (defaults to the top position of 1).
         def insert_at(position = 1)
           insert_at_position(position)
         end
@@ -118,6 +119,7 @@ module ActiveRecord
           end
         end
         
+        # Removes the item from the list.
         def remove_from_list
           decrement_positions_on_lower_items if in_list?
         end
@@ -134,13 +136,13 @@ module ActiveRecord
           update_attribute position_column, self.send(position_column).to_i - 1
         end
   
-        # Return true if this object is the first in the list.
+        # Return +true+ if this object is the first in the list.
         def first?
           return false unless in_list?
           self.send(position_column) == 1
         end
         
-        # Return true if this object is the last in the list.
+        # Return +true+ if this object is the last in the list.
         def last?
           return false unless in_list?
           self.send(position_column) == bottom_position_in_list
@@ -162,6 +164,7 @@ module ActiveRecord
           )
         end
 
+        # Test if this record is in a list
         def in_list?
           !send(position_column).nil?
         end
@@ -178,21 +181,26 @@ module ActiveRecord
           # Overwrite this method to define the scope of the list changes
           def scope_condition() "1" end
 
+          # Returns the bottom position number in the list.
+          #   bottom_position_in_list    # => 2
           def bottom_position_in_list(except = nil)
             item = bottom_item(except)
             item ? item.send(position_column) : 0
           end
 
+          # Returns the bottom item
           def bottom_item(except = nil)
             conditions = scope_condition
             conditions = "#{conditions} AND #{self.class.primary_key} != #{except.id}" if except
             acts_as_list_class.find(:first, :conditions => conditions, :order => "#{position_column} DESC")
           end
 
+          # Forces item to assume the bottom position in the list.
           def assume_bottom_position
             update_attribute(position_column, bottom_position_in_list(self).to_i + 1)
           end
   
+          # Forces item to assume the top position in the list.
           def assume_top_position
             update_attribute(position_column, 1)
           end
@@ -227,6 +235,7 @@ module ActiveRecord
            )
           end
 
+          # Increments position (<tt>position_column</tt>) of all items in the list.
           def increment_positions_on_all_items
             acts_as_list_class.update_all(
               "#{position_column} = (#{position_column} + 1)",  "#{scope_condition}"
