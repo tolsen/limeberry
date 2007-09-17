@@ -74,7 +74,8 @@ module ActiveRecord
         increment_open_transactions
 
         begin
-          connection.transaction((options[:force] == true) || Thread.current['start_db_transaction'], Thread.current['open_transactions'], &block)
+#          connection.transaction((options[:force] == true) || Thread.current['start_db_transaction'], Thread.current['open_transactions'], &block)
+          connection.transaction(true, Thread.current['open_transactions'], &block)
         ensure
           decrement_open_transactions
           trap('TERM', previous_handler)
