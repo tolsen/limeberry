@@ -55,12 +55,19 @@ module ActiveRecord
       end
 
       # Wrap a block in a transaction.  Returns result of block.
-      def transaction(start_db_transaction = true)
+      def transaction(start_db_transaction = true, savepoint_number = 1)
         transaction_open = false
+        savepoint_open = false
         begin
           if block_given?
             if start_db_transaction
-              begin_db_transaction
+              if savepoint_number == 1
+                begin_db_transaction
+              else
+                if create_savepoint(savepoint_number)
+                  savepoint_open = true
+                end
+              end
               transaction_open = true
             end
             yield
@@ -68,16 +75,29 @@ module ActiveRecord
         rescue Exception => database_transaction_rollback
           if transaction_open
             transaction_open = false
-            rollback_db_transaction
+            unless savepoint_open
+              rollback_db_transaction
+            else
+              savepoint_open = false
+              rollback_to_savepoint(savepoint_number)
+            end
           end
           raise unless database_transaction_rollback.is_a? ActiveRecord::Rollback
         end
       ensure
         if transaction_open
           begin
-            commit_db_transaction
+            unless savepoint_open
+              commit_db_transaction
+            else
+              release_savepoint(savepoint_number)
+            end
           rescue Exception => database_transaction_rollback
-            rollback_db_transaction
+            unless savepoint_open
+              rollback_db_transaction
+            else
+              rollback_to_savepoint(savepoint_number)
+            end
             raise
           end
         end
@@ -92,6 +112,18 @@ module ActiveRecord
       # Rolls back the transaction (and turns on auto-committing). Must be
       # done if the transaction block raises an exception or returns false.
       def rollback_db_transaction() end
+
+      # abstract create_savepoint method that does nothing
+      def create_savepoint(sp_number)
+      end
+
+      # abstract rollback_to_savepoint method that does nothing
+      def rollback_to_savepoint(sp_number)
+      end
+
+      # abstract release_savepoint method that does nothing
+      def release_savepoint(sp_number)
+      end
 
       # Alias for #add_limit_offset!.
       def add_limit!(sql, options)

@@ -422,6 +422,25 @@ module ActiveRecord
         execute "ROLLBACK"
       end
 
+      def create_savepoint(sp_number)
+        execute("SAVEPOINT rails_nested_transaction_#{sp_number}")
+        return true
+      rescue Exception
+        # savepoints are not supported
+      end
+
+      def rollback_to_savepoint(sp_number)
+        execute("ROLLBACK TO SAVEPOINT rails_nested_transaction_#{sp_number}")
+      rescue Exception
+        # savepoints are not supported
+      end
+
+      def release_savepoint(sp_number)
+        execute("RELEASE SAVEPOINT rails_nested_transaction_#{sp_number}")
+      rescue Exception
+        # savepoints are not supported
+      end
+
       # SCHEMA STATEMENTS ========================================
 
       # Returns the list of all tables in the schema search path or a specified schema.

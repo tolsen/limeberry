@@ -279,3 +279,119 @@ if current_adapter?(:PostgreSQLAdapter)
     end
   end
 end
+
+if current_adapter?(:PostgreSQLAdapter) or current_adapter?(:MysqlAdapter)
+  class NestedTransactionsTest < TransactionTest
+
+    def test_nested_explicit_transactions_with_forced_nesting
+      Topic.transaction do
+        @first.approved = true
+        @first.save
+        @second.approved = true
+        @second.save
+        begin
+          Topic.transaction :force => true do
+            @second.approved = false
+            @second.save
+            raise "Bad things!"
+          end
+        rescue
+          # ignore the exception
+        end
+      end
+
+      assert Topic.find(1).approved?, "First should have been approved"
+      assert Topic.find(2).approved?, "Second should have been approved"
+    end
+
+    def test_nested_explicit_transactions_without_forced_nesting
+      Topic.transaction do
+        @first.approved = true
+        @first.save
+        @second.approved = true
+        @second.save
+        begin
+          Topic.transaction do
+            @second.approved = false
+            @second.save
+            raise "Bad things!"
+          end
+        rescue
+          # ignore the exception
+        end
+      end
+
+      assert Topic.find(1).approved?, "First should have been approved"
+      assert !Topic.find(2).approved?, "Second should have been unapproved"
+    end
+
+    def test_transaction_type_save_none
+      with_topic_transaction_options :save => :none do
+        assert_queries(1) { @first.save! }
+      end
+    end
+
+    def test_transaction_type_save_flat
+      with_topic_transaction_options :save => :flat do
+        assert_queries(3) { @first.save! }
+      end
+    end
+
+    def test_transaction_type_save_flat_inside_transaction
+      with_topic_transaction_options :save => :flat do
+        Topic.transaction do
+          assert_queries(1) { @first.save! }
+        end
+      end
+    end
+
+    def test_transaction_type_save_nested
+      with_topic_transaction_options :save => :nested do
+        assert_queries(3) { @first.save! }
+      end
+    end
+
+    def test_transaction_type_save_nested_inside_transaction
+      with_topic_transaction_options :save => :nested do
+        Topic.transaction do
+          assert_queries(3) { @first.save! }
+        end
+      end
+    end
+
+    def test_transaction_type_destroy_none
+      with_topic_transaction_options :destroy => :none do
+        assert_queries(8) { assert @first.destroy }
+      end
+    end
+
+    def test_transaction_type_destroy_flat
+      with_topic_transaction_options :destroy => :flat do
+        assert_queries(10) { assert @first.destroy }
+      end
+    end
+
+    def test_transaction_type_destroy_nested
+      with_topic_transaction_options :destroy => :nested do
+        assert_queries(12) { assert @first.destroy }
+      end
+    end
+
+    private
+      def with_topic_transaction_options(options)
+        # NOTE Reply does not inherit this because the class
+        # has already been loaded
+        old_types_topic = Topic.send(:get_transaction_types)
+        old_types_reply = Topic.send(:get_transaction_types)
+
+        begin
+          Topic.send(:set_transaction_types, options)
+          Reply.send(:set_transaction_types, options)
+          yield
+        ensure
+          Topic.send(:set_transaction_types, old_types_topic)
+          Reply.send(:set_transaction_types, old_types_reply)
+        end
+      end
+  end
+end

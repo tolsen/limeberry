@@ -63,7 +63,7 @@ end
 ActiveRecord::Base.connection.class.class_eval do  
   
   if not (const_get('IGNORED_SQL') rescue nil)    
-    IGNORED_SQL = [/^PRAGMA/, /^SELECT currval/, /^SELECT CAST/, /^SELECT @@IDENTITY/]
+    IGNORED_SQL = [/^PRAGMA/, /^SELECT currval/, /^SELECT CAST/, /^SELECT @@IDENTITY/, /^SHOW FIELDS/]
 
     def execute_with_counting(sql, name = nil, &block)
       $query_count ||= 0

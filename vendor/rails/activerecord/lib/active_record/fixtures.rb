@@ -557,6 +557,7 @@ module Test #:nodoc:
             load_fixtures
             @@already_loaded_fixtures[self.class] = @loaded_fixtures
           end
+          Thread.current['transactional_test'] = true
           ActiveRecord::Base.send :increment_open_transactions
           ActiveRecord::Base.connection.begin_db_transaction
 
@@ -576,9 +577,12 @@ module Test #:nodoc:
         return unless defined?(ActiveRecord::Base) && !ActiveRecord::Base.configurations.blank?
 
         # Rollback changes if a transaction is active.
-        if use_transactional_fixtures? && Thread.current['open_transactions'] != 0
-          ActiveRecord::Base.connection.rollback_db_transaction
-          Thread.current['open_transactions'] = 0
+        if use_transactional_fixtures?
+          if Thread.current['open_transactions'] != 0
+            ActiveRecord::Base.connection.rollback_db_transaction
+            Thread.current['open_transactions'] = 0
+          end
+          Thread.current['transactional_test'] = false
         end
         ActiveRecord::Base.verify_active_connections!
       end

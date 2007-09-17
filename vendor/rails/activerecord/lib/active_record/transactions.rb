@@ -69,16 +69,56 @@ module ActiveRecord
     # Also have in mind that exceptions thrown within a transaction block will be propagated (after triggering the ROLLBACK), so you
     # should be ready to catch those in your application code.
     module ClassMethods
-      def transaction(&block)
+      def transaction(options={}, &block)
         previous_handler = trap('TERM') { raise TransactionError, "Transaction aborted" }
         increment_open_transactions
 
         begin
-          connection.transaction(Thread.current['start_db_transaction'], &block)
+          connection.transaction((options[:force] == true) || Thread.current['start_db_transaction'], Thread.current['open_transactions'], &block)
         ensure
           decrement_open_transactions
           trap('TERM', previous_handler)
         end
+      end
+
+      # Sets the options for implicit transactions. For different
+      # action types.
+      #
+      # The action types are:
+      # * <tt>:save</tt> - transaction type for creating or updating a record.
+      # * <tt>:destroy</tt> - transaction type for deleting a record.
+      #
+      # The transaction types are:
+      # * <tt>:none</tt> - no transaction is created.
+      # * <tt>:flat</tt> - transaction is only created if non exist. This is the default.
+      # * <tt>:nested</tt> - transaction is created even if one exists. This only works if the database supports nested transactions, if it does not then the behaviour is the same as for :flat.
+      #
+      # Option examples:
+      #   set_transaction_types :save => :flat
+      #   set_transaction_types :save => :none, :destroy => :nested
+      #   set_transaction_types :nested
+      def set_transaction_types(options)
+        case options
+        when Symbol
+          options = { :save => options, :destroy => options }
+        when Hash
+          options[:save] ||= :flat
+          options[:destroy] ||= :flat
+        else
+          raise(ArgumentError, "Invalid transaction type(s): %s", options.inspect)
+        end
+
+        options.assert_valid_keys(:save, :destroy)
+
+        write_inheritable_attribute("transaction_types", options)
+      end
+
+      def get_transaction_type(action_type)
+        get_transaction_types[action_type] || :flat
+      end
+
+      def get_transaction_types
+        (read_inheritable_attribute("transaction_types") or write_inheritable_attribute("transaction_types", {}))
       end
 
       private
@@ -93,20 +133,42 @@ module ActiveRecord
         end
     end
 
-    def transaction(&block)
-      self.class.transaction(&block)
+    def transaction(options={}, &block)
+      self.class.transaction(options, &block)
     end
 
     def destroy_with_transactions #:nodoc:
-      transaction { destroy_without_transactions }
+      transaction_type = self.class.get_transaction_type(:destroy)
+      if transaction_type == :none
+        destroy_without_transactions
+      else
+        options = { :force => (transaction_type == :nested) }
+        transaction(options) { destroy_without_transactions }
+      end
     end
 
     def save_with_transactions(perform_validation = true) #:nodoc:
-      rollback_active_record_state! { transaction { save_without_transactions(perform_validation) } }
+      rollback_active_record_state! do
+        transaction_type = self.class.get_transaction_type(:save)
+        if transaction_type == :none
+          save_without_transactions
+        else
+          options = { :force => (transaction_type == :nested) }
+          transaction(options) { save_without_transactions(perform_validation) }
+        end
+      end
     end
 
     def save_with_transactions! #:nodoc:
-      rollback_active_record_state! { transaction { save_without_transactions! } }
+      rollback_active_record_state! do
+        transaction_type = self.class.get_transaction_type(:save)
+        if transaction_type == :none
+          save_without_transactions!
+        else
+          options = { :force => (transaction_type == :nested) }
+          transaction(options) { save_without_transactions! }
+        end
+      end
     end
 
     # Reset id and @new_record if the transaction rolls back.
