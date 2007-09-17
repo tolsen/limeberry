@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2004-2006 David Heinemeier Hansson
+# Copyright (c) 2004-2007 David Heinemeier Hansson
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -55,13 +55,10 @@ class Dispatcher
       ActiveRecord::Base.reset_subclasses if defined?(ActiveRecord)
 
       Dependencies.clear
-      ActiveSupport::Deprecation.silence do # TODO: Remove after 1.2
-        Class.remove_class(*Reloadable.reloadable_classes)
-      end
-        
+
       ActiveRecord::Base.clear_reloadable_connections! if defined?(ActiveRecord)
     end
-    
+
     # Add a preparation callback. Preparation callbacks are run before every
     # request in development mode, and before the first request in production
     # mode.

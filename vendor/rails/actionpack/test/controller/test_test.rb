@@ -45,6 +45,16 @@ class TestTest < Test::Unit::TestCase
 </html>
 HTML
     end
+    
+    def test_xml_output
+      response.content_type = "application/xml"
+      render :text => <<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <area>area is an empty tag in HTML, raising an error if not in xml mode</area>
+</root>
+XML
+    end
 
     def test_only_one_param
       render :text => (params[:left] && params[:right]) ? "EEP, Both here!" : "OK"
@@ -301,6 +311,20 @@ HTML
           :children => { :count => 1,
             :only => { :tag => "img" } } } }
   end
+  
+  def test_should_not_impose_childless_html_tags_in_xml
+    process :test_xml_output
+
+    begin
+      $stderr = StringIO.new
+      assert_select 'area' #This will cause a warning if content is processed as HTML
+      $stderr.rewind && err = $stderr.read
+    ensure
+      $stderr = STDERR
+    end
+
+    assert err.empty?
+  end
 
   def test_assert_tag_attribute_matching
     @response.body = '<input type="text" name="my_name">'
@@ -435,6 +459,30 @@ HTML
     assert_equal content_type, file.content_type
     assert_equal file.path, file.local_path
     assert_equal File.read(path), file.read
+  end
+  
+  def test_test_uploaded_file_with_binary
+    filename = 'mona_lisa.jpg'
+    path = "#{FILES_DIR}/#{filename}"
+    content_type = 'image/png'
+    
+    binary_uploaded_file = ActionController::TestUploadedFile.new(path, content_type, :binary)
+    assert_equal File.open(path, 'rb').read, binary_uploaded_file.read
+    
+    plain_uploaded_file = ActionController::TestUploadedFile.new(path, content_type)
+    assert_equal File.open(path, 'r').read, plain_uploaded_file.read
+  end
+
+  def test_fixture_file_upload_with_binary
+    filename = 'mona_lisa.jpg'
+    path = "#{FILES_DIR}/#{filename}"
+    content_type = 'image/jpg'
+    
+    binary_file_upload = fixture_file_upload(path, content_type, :binary)
+    assert_equal File.open(path, 'rb').read, binary_file_upload.read
+    
+    plain_file_upload = fixture_file_upload(path, content_type)
+    assert_equal File.open(path, 'r').read, plain_file_upload.read
   end
 
   def test_fixture_file_upload

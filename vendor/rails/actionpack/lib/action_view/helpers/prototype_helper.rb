@@ -45,6 +45,13 @@ module ActionView
       #     :url => { :action => "destroy", :id => post.id }
       #   link_to_remote(image_tag("refresh"), :update => "emails", 
       #     :url => { :action => "list_emails" })
+      # 
+      # You can override the generated HTML options by specifying a hash in
+      # <tt>options[:html]</tt>.
+      #  
+      #   link_to_remote "Delete this post", :update => "posts",
+      #     :url  => post_url(@post), :method => :delete, 
+      #     :html => { :class  => "destructive" } 
       #
       # You can also specify a hash for <tt>options[:update]</tt> to allow for
       # easy redirection of output to an other DOM element if a server-side 
@@ -129,8 +136,8 @@ module ActionView
       #                          default this is the current form, but
       #                          it could just as well be the ID of a
       #                          table row or any other DOM element.
-      def link_to_remote(name, options = {}, html_options = {})  
-        link_to_function(name, remote_function(options), html_options)
+      def link_to_remote(name, options = {}, html_options = nil)  
+        link_to_function(name, remote_function(options), html_options || options.delete(:html))
       end
 
       # Periodically calls the specified url (<tt>options[:url]</tt>) every 
@@ -180,16 +187,54 @@ module ActionView
         form_tag(options[:html].delete(:action) || url_for(options[:url]), options[:html], &block)
       end
 
-      # Works like form_remote_tag, but uses form_for semantics.
-      def remote_form_for(record_or_name, *args, &proc)
+      # Creates a form that will submit using XMLHttpRequest in the background 
+      # instead of the regular reloading POST arrangement and a scope around a 
+      # specific resource that is used as a base for questioning about
+      # values for the fields.  
+      #
+      # === Resource 
+      #
+      # Example:
+      #   <% remote_form_for(@post) do |f| %>
+      #     ...
+      #   <% end %>
+      #
+      # This will expand to be the same as:
+      #
+      #   <% remote_form_for :post, @post, :url => post_path(@post), :html => { :method => :put, :class => "edit_post", :id => "edit_post_45" } do |f| %>
+      #     ...
+      #   <% end %>
+      #
+      # === Nested Resource 
+      #
+      # Example:
+      #   <% remote_form_for([@post, @comment]) do |f| %>
+      #     ...
+      #   <% end %>
+      #
+      # This will expand to be the same as:
+      #
+      #   <% remote_form_for :comment, @comment, :url => post_comment_path(@post, @comment), :html => { :method => :put, :class => "edit_comment", :id => "edit_comment_45" } do |f| %>
+      #     ...
+      #   <% end %>
+      #
+      # If you don't need to attach a form to a resource, then check out form_remote_tag.
+      #
+      # See FormHelper#form_for for additional semantics.
+      def remote_form_for(record_or_name_or_array, *args, &proc)
         options = args.extract_options!
 
-        case record_or_name
+        case record_or_name_or_array
         when String, Symbol
-          object_name = record_or_name
+          object_name = record_or_name_or_array
+        when Array
+          object = record_or_name_or_array.last
+          object_name = ActionController::RecordIdentifier.singular_class_name(object)
+          apply_form_for_options!(record_or_name_or_array, options)
+          args.unshift object
         else
-          object      = record_or_name
-          object_name = ActionController::RecordIdentifier.singular_class_name(record_or_name)
+          object      = record_or_name_or_array
+          object_name = ActionController::RecordIdentifier.singular_class_name(record_or_name_or_array)
           apply_form_for_options!(object, options)
           args.unshift object
         end

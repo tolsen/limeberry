@@ -20,7 +20,7 @@ class ViewLoadPathsTest < Test::Unit::TestCase
   
   class Test::SubController < ActionController::Base
     layout 'test/sub'
-    def hello_world; render 'test/hello_world'; end
+    def hello_world; render(:template => 'test/hello_world'); end
   end
   
   def setup
@@ -68,16 +68,6 @@ class ViewLoadPathsTest < Test::Unit::TestCase
     get :hello_world_at_request_time
     assert_response :success
     assert_equal "Hello overridden world!", @response.body
-  end
-  
-  def test_template_root_deprecated
-    assert_deprecated(/template_root.*view_paths/) do
-      TestController.template_root = 'foo/bar'
-    end
-    assert_deprecated(/template_root.*view_paths/) do
-      assert_equal 'foo/bar', TestController.template_root
-      assert_equal ['foo/bar', LOAD_PATH_ROOT], TestController.view_paths
-    end
   end
   
   def test_inheritance

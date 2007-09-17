@@ -2,10 +2,6 @@ require File.dirname(__FILE__) + '/../abstract_unit'
 
 class CookieTest < Test::Unit::TestCase
   class TestController < ActionController::Base
-    def authenticate_with_deprecated_writer
-      cookie "name" => "user_name", "value" => "david"
-    end
-
     def authenticate
       cookies["user_name"] = "david"
     end
@@ -33,7 +29,7 @@ class CookieTest < Test::Unit::TestCase
 
     def delete_cookie_with_path
       cookies.delete("user_name", :path => '/beaten')
-      render_text "hello world"
+      render :text => "hello world"
     end
 
     def rescue_action(e) 
@@ -47,11 +43,6 @@ class CookieTest < Test::Unit::TestCase
 
     @controller = TestController.new
     @request.host = "www.nextangle.com"
-  end
-
-  def test_setting_cookie_with_deprecated_writer
-    get :authenticate_with_deprecated_writer
-    assert_equal [ CGI::Cookie::new("name" => "user_name", "value" => "david") ], @response.headers["cookie"]
   end
 
   def test_setting_cookie

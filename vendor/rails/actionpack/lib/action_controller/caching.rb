@@ -11,10 +11,13 @@ module ActionController #:nodoc:
   # Note: To turn off all caching and sweeping, set Base.perform_caching = false.
   module Caching
     def self.included(base) #:nodoc:
-      base.send(:include, Pages, Actions, Fragments)
-      base.send(:include, Sweeping, SqlCache) if defined?(ActiveRecord)
-
       base.class_eval do
+        include Pages, Actions, Fragments
+
+        if defined? ActiveRecord
+          include Sweeping, SqlCache
+        end
+
         @@perform_caching = true
         cattr_accessor :perform_caching
       end
@@ -232,7 +235,7 @@ module ActionController #:nodoc:
           if cache = controller.read_fragment(cache_path.path)
             controller.rendered_action_cache = true
             set_content_type!(controller, cache_path.extension)
-            controller.send(:render_text, cache)
+            controller.send(:render_for_text, cache)
             false
           else
             controller.action_cache_path = cache_path
@@ -417,12 +420,6 @@ module ActionController #:nodoc:
           end
         end
       end
-
-      # Deprecated -- just call expire_fragment with a regular expression
-      def expire_matched_fragments(matcher = /.*/, options = nil) #:nodoc:
-        expire_fragment(matcher, options)
-      end
-      deprecate :expire_matched_fragments => :expire_fragment
 
 
       class UnthreadedMemoryStore #:nodoc:
@@ -615,10 +612,6 @@ module ActionController #:nodoc:
       class Sweeper < ActiveRecord::Observer #:nodoc:
         attr_accessor :controller
 
-        # ActiveRecord::Observer will mark this class as reloadable even though it should not be.
-        # However, subclasses of ActionController::Caching::Sweeper should be Reloadable
-        include Reloadable::Deprecated
-        
         def before(controller)
           self.controller = controller
           callback(:before)
@@ -656,20 +649,19 @@ module ActionController #:nodoc:
           end
       end
     end
-    
-    if defined?(ActiveRecord)     
-      module SqlCache
-        def self.included(base) #:nodoc:
+
+    module SqlCache
+      def self.included(base) #:nodoc:
+        if defined?(ActiveRecord) && ActiveRecord::Base.respond_to?(:cache)
           base.alias_method_chain :perform_action, :caching
         end
-        
-        def perform_action_with_caching
-          ActiveRecord::Base.cache do
-            perform_action_without_caching
-          end
+      end
+
+      def perform_action_with_caching
+        ActiveRecord::Base.cache do
+          perform_action_without_caching
         end
       end
     end
-    
   end
 end

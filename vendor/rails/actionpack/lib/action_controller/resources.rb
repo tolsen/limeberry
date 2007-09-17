@@ -94,6 +94,9 @@ module ActionController
         "#{name_prefix}#{singular}_"
       end
 
+      def action_separator
+        @action_separator ||= Base.resource_action_separator
+      end
 
       protected
         def arrange_actions
@@ -391,7 +394,7 @@ module ActionController
           map_associations(resource, options)
 
           if block_given?
-            with_options(:path_prefix => resource.nesting_path_prefix, :name_prefix => resource.nesting_name_prefix, &block)
+            with_options(:path_prefix => resource.nesting_path_prefix, :name_prefix => resource.nesting_name_prefix, :namespace => options[:namespace], &block)
           end
         end
       end
@@ -408,7 +411,7 @@ module ActionController
           map_associations(resource, options)
 
           if block_given?
-            with_options(:path_prefix => resource.nesting_path_prefix, :name_prefix => resource.nesting_name_prefix, &block)
+            with_options(:path_prefix => resource.nesting_path_prefix, :name_prefix => resource.nesting_name_prefix, :namespace => options[:namespace], &block)
           end
         end
       end
@@ -416,14 +419,13 @@ module ActionController
       def map_associations(resource, options)
         path_prefix = "#{options.delete(:path_prefix)}#{resource.nesting_path_prefix}"
         name_prefix = "#{options.delete(:name_prefix)}#{resource.nesting_name_prefix}"
-        namespace = options.delete(:namespace)
 
         Array(options[:has_many]).each do |association|
-          resources(association, :path_prefix => path_prefix, :name_prefix => name_prefix, :namespace => namespace)
+          resources(association, :path_prefix => path_prefix, :name_prefix => name_prefix, :namespace => options[:namespace])
         end
 
         Array(options[:has_one]).each do |association|
-          resource(association, :path_prefix => path_prefix, :name_prefix => name_prefix, :namespace => namespace)
+          resource(association, :path_prefix => path_prefix, :name_prefix => name_prefix, :namespace => options[:namespace])
         end
       end
 
@@ -431,10 +433,8 @@ module ActionController
         resource.collection_methods.each do |method, actions|
           actions.each do |action|
             action_options = action_options_for(action, resource, method)
-
-            # See http://dev.rubyonrails.org/ticket/8251
-            map.deprecated_named_route("#{action}_#{resource.name_prefix}#{resource.plural}", "#{resource.name_prefix}#{action}_#{resource.plural}", "#{resource.path}/#{action}", action_options)
-            map.deprecated_named_route("formatted_#{action}_#{resource.name_prefix}#{resource.plural}", "formatted_#{resource.name_prefix}#{action}_#{resource.plural}", "#{resource.path}/#{action}.:format", action_options)
+            map.named_route("#{action}_#{resource.name_prefix}#{resource.plural}", "#{resource.path}#{resource.action_separator}#{action}", action_options)
+            map.named_route("formatted_#{action}_#{resource.name_prefix}#{resource.plural}", "#{resource.path}#{resource.action_separator}#{action}.:format", action_options)
           end
         end
       end
@@ -460,13 +460,11 @@ module ActionController
           actions.each do |action|
             action_options = action_options_for(action, resource, method)
             if action == :new
-              # See http://dev.rubyonrails.org/ticket/8251
-              map.deprecated_named_route("new_#{resource.name_prefix}#{resource.singular}", "#{resource.name_prefix}new_#{resource.singular}", resource.new_path, action_options)
-              map.deprecated_named_route("formatted_new_#{resource.name_prefix}#{resource.singular}", "formatted_#{resource.name_prefix}new_#{resource.singular}", "#{resource.new_path}.:format", action_options)
+              map.named_route("new_#{resource.name_prefix}#{resource.singular}", resource.new_path, action_options)
+              map.named_route("formatted_new_#{resource.name_prefix}#{resource.singular}", "#{resource.new_path}.:format", action_options)
             else
-              # See http://dev.rubyonrails.org/ticket/8251
-              map.deprecated_named_route("#{action}_new_#{resource.name_prefix}#{resource.singular}", "#{resource.name_prefix}#{action}_new_#{resource.singular}", "#{resource.new_path}/#{action}", action_options)
-              map.deprecated_named_route("formatted_#{action}_new_#{resource.name_prefix}#{resource.singular}", "formatted_#{resource.name_prefix}#{action}_new_#{resource.singular}", "#{resource.new_path}/#{action}.:format", action_options)
+              map.named_route("#{action}_new_#{resource.name_prefix}#{resource.singular}", "#{resource.new_path}#{resource.action_separator}#{action}", action_options)
+              map.named_route("formatted_#{action}_new_#{resource.name_prefix}#{resource.singular}", "#{resource.new_path}#{resource.action_separator}#{action}.:format", action_options)
             end
           end
         end
@@ -476,9 +474,8 @@ module ActionController
         resource.member_methods.each do |method, actions|
           actions.each do |action|
             action_options = action_options_for(action, resource, method)
-            # See http://dev.rubyonrails.org/ticket/8251
-            map.deprecated_named_route("#{action}_#{resource.name_prefix}#{resource.singular}", "#{resource.name_prefix}#{action}_#{resource.singular}", "#{resource.member_path}/#{action}", action_options)
-            map.deprecated_named_route("formatted_#{action}_#{resource.name_prefix}#{resource.singular}", "formatted_#{resource.name_prefix}#{action}_#{resource.singular}", "#{resource.member_path}/#{action}.:format",action_options)
+            map.named_route("#{action}_#{resource.name_prefix}#{resource.singular}", "#{resource.member_path}#{resource.action_separator}#{action}", action_options)
+            map.named_route("formatted_#{action}_#{resource.name_prefix}#{resource.singular}", "#{resource.member_path}#{resource.action_separator}#{action}.:format",action_options)
           end
         end
 

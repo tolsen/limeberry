@@ -23,7 +23,7 @@ module ActionController #:nodoc:
   class TestRequest < AbstractRequest #:nodoc:
     attr_accessor :cookies, :session_options
     attr_accessor :query_parameters, :request_parameters, :path, :session, :env
-    attr_accessor :host
+    attr_accessor :host, :user_agent
 
     def initialize(query_parameters = nil, request_parameters = nil, session = nil)
       @query_parameters   = query_parameters || {}
@@ -133,6 +133,7 @@ module ActionController #:nodoc:
       def initialize_default_values
         @host                    = "test.host"
         @request_uri             = "/"
+        @user_agent              = "Rails Testing"
         self.remote_addr         = "0.0.0.0"        
         @env["SERVER_PORT"]      = 80
         @env['REQUEST_METHOD']   = "GET"
@@ -323,6 +324,9 @@ module ActionController #:nodoc:
   #
   # Usage example, within a functional test:
   #   post :change_avatar, :avatar => ActionController::TestUploadedFile.new(Test::Unit::TestCase.fixture_path + '/files/spongebob.png', 'image/png')
+  # 
+  # Pass a true third parameter to ensure the uploaded file is opened in binary mode (only required for Windows):
+  #   post :change_avatar, :avatar => ActionController::TestUploadedFile.new(Test::Unit::TestCase.fixture_path + '/files/spongebob.png', 'image/png', :binary)
   require 'tempfile'
   class TestUploadedFile
     # The filename, *not* including the path, of the "uploaded" file
@@ -331,11 +335,12 @@ module ActionController #:nodoc:
     # The content type of the "uploaded" file
     attr_reader :content_type
 
-    def initialize(path, content_type = Mime::TEXT)
+    def initialize(path, content_type = Mime::TEXT, binary = false)
       raise "#{path} file does not exist" unless File.exist?(path)
       @content_type = content_type
       @original_filename = path.sub(/^.*#{File::SEPARATOR}([^#{File::SEPARATOR}]+)$/) { $1 }
       @tempfile = Tempfile.new(@original_filename)
+      @tempfile.binmode if binary
       FileUtils.copy_file(path, @tempfile.path)
     end
 
@@ -442,7 +447,8 @@ module ActionController #:nodoc:
     end
 
     def html_document
-      @html_document ||= HTML::Document.new(@response.body)
+      xml = @response.content_type =~ /xml$/
+      @html_document ||= HTML::Document.new(@response.body, false, xml)
     end
 
     def find_tag(conditions)
@@ -460,10 +466,14 @@ module ActionController #:nodoc:
     
     # Shortcut for ActionController::TestUploadedFile.new(Test::Unit::TestCase.fixture_path + path, type). Example:
     #   post :change_avatar, :avatar => fixture_file_upload('/files/spongebob.png', 'image/png')
-    def fixture_file_upload(path, mime_type = nil)
+    #
+    # To upload binary files on Windows, pass :binary as the last parameter. This will not affect other platforms.
+    #   post :change_avatar, :avatar => fixture_file_upload('/files/spongebob.png', 'image/png', :binary)
+    def fixture_file_upload(path, mime_type = nil, binary = false)
       ActionController::TestUploadedFile.new(
         Test::Unit::TestCase.respond_to?(:fixture_path) ? Test::Unit::TestCase.fixture_path + path : path, 
-        mime_type
+        mime_type,
+        binary
       )
     end
 

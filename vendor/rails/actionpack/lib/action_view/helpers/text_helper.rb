@@ -30,7 +30,7 @@ module ActionView
       end
 
       # If +text+ is longer than +length+, +text+ will be truncated to the length of 
-      # +length+ (defaults to 30) and the last three characters will be replaced with the +truncate_string+
+      # +length+ (defaults to 30) and the last characters will be replaced with the +truncate_string+
       # (defaults to "...").
       #
       # ==== Examples
@@ -305,7 +305,7 @@ module ActionView
       def auto_link(text, link = :all, href_options = {}, &block)
         return '' if text.blank?
         case link
-          when :all             then auto_link_urls(auto_link_email_addresses(text, &block), href_options, &block)
+          when :all             then auto_link_email_addresses(auto_link_urls(text, href_options, &block), &block)
           when :email_addresses then auto_link_email_addresses(text, &block)
           when :urls            then auto_link_urls(text, href_options, &block)
         end
@@ -438,7 +438,7 @@ module ActionView
       #     <tr class="<%= cycle("even", "odd", :name => "row_class")
       #       <td>
       #         <% item.values.each do |value| %>
-      #           <!-- Create a named cycle "colors" -->
+      #           <%# Create a named cycle "colors" %>
       #           <span style="color:<%= cycle("red", "green", "blue", :name => "colors") -%>">
       #             <%= value %>
       #           </span>
@@ -534,8 +534,8 @@ module ActionView
                           [-\w]+                   # subdomain or domain
                           (?:\.[-\w]+)*            # remaining subdomains or domain
                           (?::\d+)?                # port
-                          (?:/(?:(?:[~\w\+%-]|(?:[,.;:][^\s$]))+)?)* # path
-                          (?:\?[\w\+%&=.;-]+)?     # query string
+                          (?:/(?:(?:[~\w\+@%-]|(?:[,.;:][^\s$]))+)?)* # path
+                          (?:\?[\w\+@%&=.;-]+)?     # query string
                           (?:\#[\w\-]*)?           # trailing anchor
                         )
                         ([[:punct:]]|\s|<|$)       # trailing text
@@ -560,10 +560,16 @@ module ActionView
         # Turns all email addresses into clickable links.  If a block is given,
         # each email is yielded and the result is used as the link text.
         def auto_link_email_addresses(text)
+          body = text.dup
           text.gsub(/([\w\.!#\$%\-+.]+@[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+)/) do
             text = $1
-            text = yield(text) if block_given?
-            %{<a href="mailto:#{$1}">#{text}</a>}
+            
+            if body.match(/<a\b[^>]*>(.*)(#{text})(.*)<\/a>/)
+              text
+            else
+              display_text = (block_given?) ? yield(text) : text
+              %{<a href="mailto:#{text}">#{display_text}</a>}
+            end
           end
         end
     end

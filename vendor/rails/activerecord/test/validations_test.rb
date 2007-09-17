@@ -457,6 +457,24 @@ class ValidationsTest < Test::Unit::TestCase
     assert developer.valid?
   end
 
+  def test_validates_length_of_with_allow_nil
+    Topic.validates_length_of( :title, :is => 5, :allow_nil=>true )
+
+    assert !Topic.create("title" => "ab").valid?
+    assert !Topic.create("title" => "").valid?
+    assert Topic.create("title" => nil).valid?
+    assert Topic.create("title" => "abcde").valid?
+  end
+
+  def test_validates_length_of_with_allow_blank
+    Topic.validates_length_of( :title, :is => 5, :allow_blank=>true )
+
+    assert !Topic.create("title" => "ab").valid?
+    assert Topic.create("title" => "").valid?
+    assert Topic.create("title" => nil).valid?
+    assert Topic.create("title" => "abcde").valid?
+  end
+
   def test_numericality_with_allow_nil_and_getter_method
     Developer.validates_numericality_of( :salary, :allow_nil => true)
     developer = Developer.new("name" => "michael", "salary" => nil)
@@ -650,18 +668,6 @@ class ValidationsTest < Test::Unit::TestCase
     assert !t.valid?
 
     assert_equal 'tu est trops petit hombre 10', t.errors['title']
-  end
-  
-  def test_add_on_boundary_breaking_is_deprecated
-    t = Topic.new('title' => 'noreplies', 'content' => 'whatever')
-    class << t
-      def validate
-        errors.add_on_boundary_breaking('title', 1..6)
-      end
-    end
-    assert_deprecated 'add_on_boundary_breaking' do
-      assert !t.valid?
-    end
   end
 
   def test_validates_size_of_association

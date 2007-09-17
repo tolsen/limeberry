@@ -12,9 +12,6 @@ module ActionController
     # such as { 'RAILS_ENV' => 'production' }.
     attr_reader :env
 
-    # The requested content type, such as :html or :xml.
-    attr_writer :format
-
     # The HTTP request method as a lowercase symbol, such as :get.
     # Note, HEAD is returned as :get since the two are functionally
     # equivalent from the application's perspective.
@@ -90,6 +87,23 @@ module ActionController
     def format
       @format ||= parameters[:format] ? Mime::Type.lookup_by_extension(parameters[:format]) : accepts.first
     end
+    
+    
+    # Sets the format by string extension, which can be used to force custom formats that are not controlled by the extension.
+    # Example:
+    #
+    #   class ApplicationController < ActionController::Base
+    #     before_filter :adjust_format_for_iphone
+    #   
+    #     private
+    #       def adjust_format_for_iphone
+    #         request.format = :iphone if request.env["HTTP_USER_AGENT"][/iPhone/]
+    #       end
+    #   end
+    def format=(extension)
+      parameters[:format] = extension.to_s
+      format
+    end
 
     # Returns true if the request's "X-Requested-With" header contains
     # "XMLHttpRequest". (The Prototype Javascript library sends this header with
@@ -105,6 +119,14 @@ module ActionController
     # falling back to REMOTE_ADDR.  HTTP_X_FORWARDED_FOR may be a comma-
     # delimited list in the case of multiple chained proxies; the first is
     # the originating IP.
+    #
+    # Security note: Be aware that since remote_ip will check regular HTTP headers,
+    # it can be tricked by anyone setting those manually. In other words, people can
+    # pose as whatever IP address they like to this method. That doesn't matter if
+    # all your doing is using IP addresses for statistical or geographical information,
+    # but if you want to, for example, limit access to an administrative area by IP,
+    # you should instead use Request#remote_addr, which can't be spoofed (but also won't
+    # survive proxy forwards).
     def remote_ip
       return @env['HTTP_CLIENT_IP'] if @env.include? 'HTTP_CLIENT_IP'
 

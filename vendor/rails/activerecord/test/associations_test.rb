@@ -30,18 +30,12 @@ class AssociationsTest < Test::Unit::TestCase
     firm.save
     firm.clients.each {|c|} # forcing to load all clients
     assert firm.clients.empty?, "New firm shouldn't have client objects"
-    assert_deprecated do
-      assert !firm.has_clients?, "New firm shouldn't have clients"
-    end
     assert_equal 0, firm.clients.size, "New firm should have 0 clients"
 
     client = Client.new("name" => "TheClient.com", "firm_id" => firm.id)
     client.save
 
     assert firm.clients.empty?, "New firm should have cached no client objects"
-    assert_deprecated do
-      assert !firm.has_clients?, "New firm should have cached a no-clients response"
-    end
     assert_equal 0, firm.clients.size, "New firm should have cached 0 clients count"
 
     assert !firm.clients(true).empty?, "New firm should have reloaded client objects"
@@ -213,12 +207,6 @@ class HasOneAssociationsTest < Test::Unit::TestCase
     firm.destroy
     assert_equal num_accounts - 1, Account.count
     assert_equal [account_id], Account.destroyed_account_ids[firm.id]
-  end
-
-  def test_deprecated_exclusive_dependence
-    assert_deprecated(/:exclusively_dependent.*:dependent => :delete_all/) do
-      Firm.has_many :deprecated_exclusively_dependent_clients, :class_name => 'Client', :exclusively_dependent => true
-    end
   end
 
   def test_exclusive_dependence
@@ -973,6 +961,11 @@ class HasManyAssociationsTest < Test::Unit::TestCase
     assert_equal 1, firm.clients.length
   end
 
+  def test_replace_with_less_and_dependent_nullify
+    num_companies = Company.count
+    companies(:rails_core).companies = []
+    assert_equal num_companies, Company.count
+  end
 
   def test_replace_with_new
     firm = Firm.find(:first)
