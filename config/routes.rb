@@ -20,7 +20,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require "config/request_methods"
+require File.dirname(__FILE__) + "/request_methods"
 
 ActionController::Routing::Routes.draw do |map|
   # Add your own custom routes here.

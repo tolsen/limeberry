@@ -20,8 +20,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'config/request_methods'
-require 'test/http_method_maker'
+require File.expand_path(File.dirname(__FILE__) + "/../config/request_methods")
+require File.expand_path(File.dirname(__FILE__) + "/http_method_maker")
 
 raise 'require\'d test/test_helper twice!, you broke it!' if
   ENV['RAILS_ENV'] == 'test'
