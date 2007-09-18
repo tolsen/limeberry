@@ -1,5 +1,3 @@
-# -*- rake -*-
-
 # Copyright (c) 2007 Lime Spot LLC
 
 # Permission is hereby granted, free of charge, to any person
@@ -22,8 +20,17 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-namespace :test do
-  task :units => "db:test:populate"
-  task :functionals => "db:test:populate"
-  task :integration => "db:test:populate"
+# $Id$
+# $URL$
+
+require 'test/test_helper'
+
+class DavUnitTestCase < Test::Unit::TestCase
+  include DavTest
+
+  def test_dummy
+    assert true
+  end
+
 end
+

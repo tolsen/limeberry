@@ -20,6 +20,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+require 'base64'
 require File.expand_path(File.dirname(__FILE__) + "/../config/request_methods")
 require File.expand_path(File.dirname(__FILE__) + "/http_method_maker")
 
@@ -59,6 +60,10 @@ module DavTest
         end
       end
     end
+  end
+
+  def test_dummy
+    assert true
   end
 
   def setup
@@ -108,10 +113,6 @@ module DavTest
       found = response.propstathash[url][status].member? DavResponse::Prop.new(namespace,name,value)
     }
     assert found
-  end
-
-  def test_dummy
-    assert true
   end
 
   def assert_restricted_methods(obj, bad_methods)
@@ -172,33 +173,6 @@ module DavTest
     assert_equal expected, @response.binary_content
   end
   
-end
-
-class DavUnitTestCase < Test::Unit::TestCase
-  include DavTest
-end
-
-class DavFunctionalTestCase < Test::Unit::TestCase
-  include DavTest
-
-  def self.inherited sub
-    super
-    sub_name = sub.name.demodulize.underscore
-    if sub_name.sub! /^([^_]*)_controller_test$/, '\1'
-      request_class = sub_name.to_sym
-
-      if Limeberry::REQUEST_METHODS.include? request_class
-        Limeberry::REQUEST_METHODS[request_class].each do |m|
-          sub.class_eval(HttpMethodMaker::Functional.http_method_body(m), __FILE__, __LINE__)
-        end
-      end
-    end
-  end
-  
-end
-
-class DavIntegrationTestCase < ActionController::IntegrationTest
-  include DavTest
 end
 
 class HttpTestRequest < ActionController::TestRequest

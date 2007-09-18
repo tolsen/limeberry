@@ -40,7 +40,7 @@ module HttpMethodMaker
       name.gsub!(/-/, '_')
       <<-EOV
         def #{name}(path, parameters=nil, headers=nil)
-          process(:#{name}, parameters, headers)
+          process(:#{name}, path, parameters, headers)
         end
       EOV
     end

@@ -30,7 +30,6 @@ require 'set'
 require 'uuidtools'
 require 'web_dav_response'
 
-
 class Resource < ActiveRecord::Base
 
   validates_presence_of :uuid, :owner, :creator

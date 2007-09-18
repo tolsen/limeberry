@@ -1,5 +1,3 @@
-# -*- rake -*-
-
 # Copyright (c) 2007 Lime Spot LLC
 
 # Permission is hereby granted, free of charge, to any person
@@ -22,8 +20,38 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-namespace :test do
-  task :units => "db:test:populate"
-  task :functionals => "db:test:populate"
-  task :integration => "db:test:populate"
+# $Id$
+# $URL$
+
+require 'test/test_helper'
+
+class DavFunctionalTestCase < Test::Unit::TestCase
+  include DavTest
+
+  def self.inherited sub
+    super
+    sub_name = sub.name.demodulize.underscore
+    if sub_name.sub! /^([^_]*)_controller_test$/, '\1'
+      request_class = sub_name.to_sym
+
+      if Limeberry::REQUEST_METHODS.include? request_class
+#         Limeberry::REQUEST_METHODS[request_class].each do |name|
+#           name.gsub!(/-/, '_')
+#           method_def = <<-EOV
+#             def #{name}(path, username = nil)
+#               @request.env['REQUEST_METHOD'] = "#{name.upcase}" if defined?(@request)
+#               path_a = path.split('/').reject { |n| n.blank? }
+#               process(:#{name}, { :path => path_a}, { :username => username })
+#             end
+#           EOV
+#           sub.class_eval method_def, __FILE__, __LINE__
+        #         end
+        Limeberry::REQUEST_METHODS[request_class].each do |m|
+          sub.class_eval(HttpMethodMaker::Functional.http_method_body(m), __FILE__, __LINE__)
+        end
+
+      end
+    end
+  end
+  
 end

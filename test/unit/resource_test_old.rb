@@ -20,11 +20,14 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'test/test_helper'
 require 'rexml/document'
 require 'stringio'
-require File.dirname(__FILE__) + '/../../lib/errors'
-require File.dirname(__FILE__) + '/../../lib/if_header'
+
+require 'lib/errors'
+require 'lib/if_header'
+
+require 'test/test_helper'
+require 'test/unit/dav_unit_test'
 
 class ResourceTest < DavUnitTestCase
 

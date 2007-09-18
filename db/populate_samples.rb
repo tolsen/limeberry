@@ -215,3 +215,7 @@ Privilege.priv_all.grant dir, stimpy
 put_new dir, 'inherits', 'inherits', stimpy
 disowned = Resource.create :displayname => 'disowned', :creator => stimpy
 dir.bind disowned, 'disowned', stimpy  # acl parent *not* set
+
+# for http_lock integration tests
+httplockroot = Collection.mkcol_p '/httplock', limeberry
+Privilege.priv_all.grant httplockroot, ren

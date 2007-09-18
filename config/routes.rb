@@ -49,7 +49,7 @@ ActionController::Routing::Routes.draw do |map|
       map.connect("#{BASE_WEBDAV_PATH}/*path",
                   :controller => controller.to_s,
                   :action => action,
-                  :conditions => { :method => method })
+                  :conditions => { :method => method.to_sym })
     end
   end
 
