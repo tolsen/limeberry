@@ -37,14 +37,16 @@ class DavFunctionalTestCase < Test::Unit::TestCase
       if Limeberry::REQUEST_METHODS.include? request_class
         Limeberry::REQUEST_METHODS[request_class].each do |name|
           name.gsub!(/-/, '_')
-          method_def = <<-EOV
-            def #{name}(path, username = nil)
-              @request.env['REQUEST_METHOD'] = "#{name.upcase}" if defined?(@request)
-              path_a = path.split('/').reject { |n| n.blank? }
-              process(:#{name}, { :path => path_a}, { :username => username })
-            end
-          EOV
-          sub.class_eval method_def, __FILE__, __LINE__
+          name_sym = name.to_sym
+          name_upcase = name.upcase
+          sub.send(:define_method, name) do |*args|
+            path, username = args
+            @request.env['REQUEST_METHOD'] = name_upcase if defined?(@request)
+            path_a = path.split('/').reject { |n| n.blank? }
+            process(name_sym, { :path => path_a}, { :username => username })
+          end
+
+            
         end
       end
       
