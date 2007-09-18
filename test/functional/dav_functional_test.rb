@@ -35,22 +35,19 @@ class DavFunctionalTestCase < Test::Unit::TestCase
       request_class = sub_name.to_sym
 
       if Limeberry::REQUEST_METHODS.include? request_class
-#         Limeberry::REQUEST_METHODS[request_class].each do |name|
-#           name.gsub!(/-/, '_')
-#           method_def = <<-EOV
-#             def #{name}(path, username = nil)
-#               @request.env['REQUEST_METHOD'] = "#{name.upcase}" if defined?(@request)
-#               path_a = path.split('/').reject { |n| n.blank? }
-#               process(:#{name}, { :path => path_a}, { :username => username })
-#             end
-#           EOV
-#           sub.class_eval method_def, __FILE__, __LINE__
-        #         end
-        Limeberry::REQUEST_METHODS[request_class].each do |m|
-          sub.class_eval(HttpMethodMaker::Functional.http_method_body(m), __FILE__, __LINE__)
+        Limeberry::REQUEST_METHODS[request_class].each do |name|
+          name.gsub!(/-/, '_')
+          method_def = <<-EOV
+            def #{name}(path, username = nil)
+              @request.env['REQUEST_METHOD'] = "#{name.upcase}" if defined?(@request)
+              path_a = path.split('/').reject { |n| n.blank? }
+              process(:#{name}, { :path => path_a}, { :username => username })
+            end
+          EOV
+          sub.class_eval method_def, __FILE__, __LINE__
         end
-
       end
+      
     end
   end
   

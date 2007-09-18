@@ -22,7 +22,6 @@
 
 require 'base64'
 require File.expand_path(File.dirname(__FILE__) + "/../config/request_methods")
-require File.expand_path(File.dirname(__FILE__) + "/http_method_maker")
 
 raise 'require\'d test/test_helper twice!, you broke it!' if
   ENV['RAILS_ENV'] == 'test'
