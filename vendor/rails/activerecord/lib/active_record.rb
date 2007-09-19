@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2004-2006 David Heinemeier Hansson
+# Copyright (c) 2004-2007 David Heinemeier Hansson
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -36,6 +36,7 @@ end
 
 require 'active_record/base'
 require 'active_record/observer'
+require 'active_record/query_cache'
 require 'active_record/validations'
 require 'active_record/callbacks'
 require 'active_record/reflection'
@@ -43,9 +44,6 @@ require 'active_record/associations'
 require 'active_record/aggregations'
 require 'active_record/transactions'
 require 'active_record/timestamp'
-require 'active_record/acts/list'
-require 'active_record/acts/tree'
-require 'active_record/acts/nested_set'
 require 'active_record/locking/optimistic'
 require 'active_record/locking/pessimistic'
 require 'active_record/migration'
@@ -55,6 +53,7 @@ require 'active_record/xml_serialization'
 require 'active_record/attribute_methods'
 
 ActiveRecord::Base.class_eval do
+  extend ActiveRecord::QueryCache
   include ActiveRecord::Validations
   include ActiveRecord::Locking::Optimistic
   include ActiveRecord::Locking::Pessimistic
@@ -65,21 +64,11 @@ ActiveRecord::Base.class_eval do
   include ActiveRecord::Aggregations
   include ActiveRecord::Transactions
   include ActiveRecord::Reflection
-  include ActiveRecord::Acts::Tree
-  include ActiveRecord::Acts::List
-  include ActiveRecord::Acts::NestedSet
   include ActiveRecord::Calculations
   include ActiveRecord::XmlSerialization
   include ActiveRecord::AttributeMethods
 end
 
-unless defined?(RAILS_CONNECTION_ADAPTERS)
-  RAILS_CONNECTION_ADAPTERS = %w( mysql postgresql sqlite firebird sqlserver db2 oracle sybase openbase frontbase )
-end
+require 'active_record/connection_adapters/abstract_adapter'
 
-RAILS_CONNECTION_ADAPTERS.each do |adapter|
-  require "active_record/connection_adapters/" + adapter + "_adapter"
-end
-
-require 'active_record/query_cache'
 require 'active_record/schema_dumper'

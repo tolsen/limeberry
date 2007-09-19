@@ -1,10 +1,14 @@
 require File.dirname(__FILE__) + '/../abstract_unit'
 
 module One
+  Constant1 = "Hello World"
+  Constant2 = "What's up?"
 end
 
 class Ab
   include One
+  Constant1 = "Hello World" # Will have different object id than One::Constant1
+  Constant3 = "Goodbye World"
 end
 
 module Xy
@@ -91,6 +95,10 @@ class ModuleTest < Test::Unit::TestCase
     assert_equal [Yz::Zy, Yz, Object], Yz::Zy::Cd.parents
     assert_equal [Yz, Object], Yz::Zy.parents
   end
+  
+  def test_local_constants
+    assert_equal %w(Constant1 Constant3), Ab.local_constants.sort
+  end
 
   def test_as_load_path
     assert_equal 'yz/zy', Yz::Zy.as_load_path
@@ -120,6 +128,10 @@ module BarMethods
 
   def quux_with_baz=(v)
     send(:quux_without_baz=, v) << '_with_baz'
+  end
+  
+  def duck_with_orange
+    duck_without_orange << '_with_orange'
   end
 end
 
@@ -217,5 +229,46 @@ class MethodAliasingTest < Test::Unit::TestCase
       assert_equal '?', punctuation
     end
     assert block_called
+  end
+  
+  def test_alias_method_chain_preserves_private_method_status
+    FooClassWithBarMethod.send(:define_method, 'duck', Proc.new { 'duck' })
+    FooClassWithBarMethod.send(:include, BarMethodAliaser)
+    FooClassWithBarMethod.send(:private, :duck)
+    
+    FooClassWithBarMethod.alias_method_chain :duck, :orange
+    
+    assert_raises NoMethodError do
+      @instance.duck
+    end
+    
+    assert_equal 'duck_with_orange', @instance.send(:duck)
+    assert FooClassWithBarMethod.private_method_defined?(:duck)
+  end
+  
+  def test_alias_method_chain_preserves_protected_method_status
+    FooClassWithBarMethod.send(:define_method, 'duck', Proc.new { 'duck' })
+    FooClassWithBarMethod.send(:include, BarMethodAliaser)
+    FooClassWithBarMethod.send(:protected, :duck)
+    
+    FooClassWithBarMethod.alias_method_chain :duck, :orange
+    
+    assert_raises NoMethodError do
+      @instance.duck
+    end
+    
+    assert_equal 'duck_with_orange', @instance.send(:duck)
+    assert FooClassWithBarMethod.protected_method_defined?(:duck)
+  end
+  
+  def test_alias_method_chain_preserves_public_method_status
+    FooClassWithBarMethod.send(:define_method, 'duck', Proc.new { 'duck' })
+    FooClassWithBarMethod.send(:include, BarMethodAliaser)
+    FooClassWithBarMethod.send(:public, :duck)
+    
+    FooClassWithBarMethod.alias_method_chain :duck, :orange
+    
+    assert_equal 'duck_with_orange', @instance.duck
+    assert FooClassWithBarMethod.public_method_defined?(:duck)
   end
 end

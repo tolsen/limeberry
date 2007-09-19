@@ -20,7 +20,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require "config/request_methods"
+require File.dirname(__FILE__) + "/request_methods"
 
 ActionController::Routing::Routes.draw do |map|
   # Add your own custom routes here.
@@ -49,7 +49,7 @@ ActionController::Routing::Routes.draw do |map|
       map.connect("#{BASE_WEBDAV_PATH}/*path",
                   :controller => controller.to_s,
                   :action => action,
-                  :conditions => { :method => method })
+                  :conditions => { :method => method.to_sym })
     end
   end
 

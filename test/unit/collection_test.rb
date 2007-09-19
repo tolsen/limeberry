@@ -21,8 +21,10 @@
 # SOFTWARE.
 
 require 'test/test_helper'
+require 'test/unit/dav_unit_test'
+
 require 'stringio'
-require  File.dirname(__FILE__) + '/../../lib/errors'
+require 'lib/errors'
 
 class CollectionTest < DavUnitTestCase
 

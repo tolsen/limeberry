@@ -20,9 +20,11 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'test/test_helper'
 require 'stringio'
-require  File.dirname(__FILE__) + '/../../lib/errors'
+
+require 'lib/errors'
+require 'test/test_helper'
+require 'test/unit/dav_unit_test'
 
 class LockNullResourceTest < DavUnitTestCase
 

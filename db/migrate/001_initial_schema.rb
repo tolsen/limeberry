@@ -92,7 +92,7 @@ class InitialSchema < ActiveRecord::Migration
       t.column "scope",        :string,   :limit => 1,  :default => "X", :null => false
       t.column "depth",       :string,   :limit => 1,  :default => "0", :null => false
       t.column "expires_at",  :datetime,                                :null => false
-      t.column "owner_info",  :text,                   :default => "",  :null => false
+      t.column "owner_info",  :text
       t.column "lock_root",   :text,                   :default => "",  :null => false
     end
 

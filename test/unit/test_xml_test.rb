@@ -21,6 +21,8 @@
 # SOFTWARE.
 
 require 'test/test_helper'
+require 'test/unit/dav_unit_test'
+
 require 'test/xml'
 
 class TestXmlTest < Test::Unit::TestCase

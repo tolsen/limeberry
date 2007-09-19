@@ -162,6 +162,9 @@ module UTF8HandlingTest
     assert_equal " Блå ﬃ ", @handler.slice(@string, 4..10), "Unicode characters have to be returned"
     assert_equal "", @handler.slice(@string, 7..6), "Range is empty, should return an empty string"
     assert_raise(ActiveSupport::Multibyte::Handlers::EncodingError) { @handler.slice(@bytestring, 2..3) }
+    assert_raise(TypeError, "With 2 args, should raise TypeError for non-Numeric or Regexp first argument") { @handler.slice(@string, 2..3, 1) }
+    assert_raise(TypeError, "With 2 args, should raise TypeError for non-Numeric or Regexp second argument") { @handler.slice(@string, 1, 2..3) }
+    assert_raise(ArgumentError, "Should raise ArgumentError when there are more than 2 args") { @handler.slice(@string, 1, 1, 1) }
   end
   
   def test_grapheme_cluster_length
@@ -194,6 +197,91 @@ module UTF8HandlingTest
      
      assert_equal nil, @handler.index(@bytestring, 'a')
      assert_raise(ActiveSupport::Multibyte::Handlers::EncodingError) { @handler.index(@bytestring, "\010") }
+  end
+  
+  def test_indexed_insert
+    s = "Καλη!"
+    @handler[s, 2] = "a"
+    assert_equal "Καaη!", s
+    @handler[s, 2] = "ηη"
+    assert_equal "Καηηη!", s
+    assert_raises(IndexError) { @handler[s, 10] = 'a' }
+    assert_equal "Καηηη!", s
+    @handler[s, 2] = 32
+    assert_equal "Κα ηη!", s
+    @handler[s, 3, 2] = "λλλ"
+    assert_equal "Κα λλλ!", s
+    @handler[s, 1, 0] = "λ"
+    assert_equal "Κλα λλλ!", s
+    assert_raises(IndexError) { @handler[s, 10, 4] = 'a' }
+    assert_equal "Κλα λλλ!", s
+    @handler[s, 4..6] = "ηη"
+    assert_equal "Κλα ηη!", s
+    assert_raises(RangeError) { @handler[s, 10..12] = 'a' }
+    assert_equal "Κλα ηη!", s
+    @handler[s, /ηη/] = "λλλ"
+    assert_equal "Κλα λλλ!", s
+    assert_raises(IndexError) { @handler[s, /ii/] = 'a' }
+    assert_equal "Κλα λλλ!", s
+    @handler[s, /(λλ)(.)/, 2] = "α"
+    assert_equal "Κλα λλα!", s
+    assert_raises(IndexError) { @handler[s, /()/, 10] = 'a' }
+    assert_equal "Κλα λλα!", s
+    @handler[s, "α"] = "η"
+    assert_equal "Κλη λλα!", s
+    @handler[s, "λλ"] = "ααα"
+    assert_equal "Κλη αααα!", s
+  end
+  
+  def test_rjust
+    s = "Καη"
+    assert_raises(ArgumentError) { @handler.rjust(s, 10, '') }
+    assert_raises(ArgumentError) { @handler.rjust(s) }
+    assert_equal "Καη", @handler.rjust(s, -3)
+    assert_equal "Καη", @handler.rjust(s, 0)
+    assert_equal "Καη", @handler.rjust(s, 3)
+    assert_equal "  Καη", @handler.rjust(s, 5)
+    assert_equal "    Καη", @handler.rjust(s, 7)
+    assert_equal "----Καη", @handler.rjust(s, 7, '-')
+    assert_equal "ααααΚαη", @handler.rjust(s, 7, 'α')
+    assert_equal "abaΚαη", @handler.rjust(s, 6, 'ab')
+    assert_equal "αηαΚαη", @handler.rjust(s, 6, 'αη')
+  end
+  
+  def test_ljust
+    s = "Καη"
+    assert_raises(ArgumentError) { @handler.ljust(s, 10, '') }
+    assert_raises(ArgumentError) { @handler.ljust(s) }
+    assert_equal "Καη", @handler.ljust(s, -3)
+    assert_equal "Καη", @handler.ljust(s, 0)
+    assert_equal "Καη", @handler.ljust(s, 3)
+    assert_equal "Καη  ", @handler.ljust(s, 5)
+    assert_equal "Καη    ", @handler.ljust(s, 7)
+    assert_equal "Καη----", @handler.ljust(s, 7, '-')
+    assert_equal "Καηαααα", @handler.ljust(s, 7, 'α')
+    assert_equal "Καηaba", @handler.ljust(s, 6, 'ab')
+    assert_equal "Καηαηα", @handler.ljust(s, 6, 'αη')
+  end
+  
+  def test_center
+    s = "Καη"
+    assert_raises(ArgumentError) { @handler.center(s, 10, '') }
+    assert_raises(ArgumentError) { @handler.center(s) }
+    assert_equal "Καη", @handler.center(s, -3)
+    assert_equal "Καη", @handler.center(s, 0)
+    assert_equal "Καη", @handler.center(s, 3)
+    assert_equal "Καη ", @handler.center(s, 4)
+    assert_equal " Καη ", @handler.center(s, 5)
+    assert_equal " Καη  ", @handler.center(s, 6)
+    assert_equal "--Καη--", @handler.center(s, 7, '-')
+    assert_equal "--Καη---", @handler.center(s, 8, '-')
+    assert_equal "ααΚαηαα", @handler.center(s, 7, 'α')
+    assert_equal "ααΚαηααα", @handler.center(s, 8, 'α')
+    assert_equal "aΚαηab", @handler.center(s, 6, 'ab')
+    assert_equal "abΚαηab", @handler.center(s, 7, 'ab')
+    assert_equal "ababΚαηabab", @handler.center(s, 11, 'ab')
+    assert_equal "αΚαηαη", @handler.center(s, 6, 'αη')
+    assert_equal "αηΚαηαη", @handler.center(s, 7, 'αη')
   end
   
   def test_strip

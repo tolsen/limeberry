@@ -20,13 +20,44 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require "#{File.dirname(__FILE__)}/../test_helper"
+# $Id$
+# $URL$
 
-class HttpLockTest < ActionController::IntegrationTest
-  # fixtures :your, :models
+require "test/test_helper"
+require "test/integration/dav_integration_test.rb"
 
-  # Replace this with your real tests.
-  def test_truth
-    assert true
+class HttpLockTest < DavIntegrationTestCase
+
+  def setup
+    super
+    @ren_auth = auth_header 'ren', 'ren'
   end
+  
+  # test that my modified integration test case works
+  def test_dav_integration_test
+    put '/httplock/foo', 'hello', @ren_auth
+    assert_response 201
+
+    get '/httplock/foo', nil, @ren_auth
+    assert_response 200
+    assert_equal 'hello', response.binary_content
+  end
+
+  def test_put_lock
+    put '/httplock/a', 'hello', @ren_auth
+    assert_response 423
+
+    a_lock = Bind.locate('/httplock/a').locks[0]
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header(a_lock))
+    assert_response 204
+
+    get '/httplock/a', nil, @ren_auth
+    assert_response 200
+    assert_equal 'hello', response.binary_content
+  end
+
+  def if_header *args
+    { 'HTTP_IF' => "(<#{args[0].locktoken}>)" }
+  end
+    
 end

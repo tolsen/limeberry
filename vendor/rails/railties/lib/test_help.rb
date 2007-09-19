@@ -8,12 +8,10 @@ require 'test/unit'
 require 'active_record/fixtures'
 require 'action_controller/test_process'
 require 'action_controller/integration'
-require 'action_web_service/test_invoke'
-require 'breakpoint'
 
 Test::Unit::TestCase.fixture_path = RAILS_ROOT + "/test/fixtures/"
 ActionController::IntegrationTest.fixture_path = Test::Unit::TestCase.fixture_path
 
 def create_fixtures(*table_names)
-  Fixtures.create_fixtures(RAILS_ROOT + "/test/fixtures", table_names)
+  Fixtures.create_fixtures(Test::Unit::TestCase.fixture_path, table_names)
 end

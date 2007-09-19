@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/../abstract_unit'
+require "#{File.dirname(__FILE__)}/../abstract_unit"
 
 class FormTagHelperTest < Test::Unit::TestCase
   include ActionView::Helpers::UrlHelper
@@ -9,7 +9,7 @@ class FormTagHelperTest < Test::Unit::TestCase
 
   def setup
     @controller = Class.new do
-      def url_for(options, *parameters_for_method_reference)
+      def url_for(options)
         "http://www.example.com"
       end
     end
@@ -44,7 +44,7 @@ class FormTagHelperTest < Test::Unit::TestCase
     _erbout = ''
     form_tag("http://example.com") { _erbout.concat "Hello world!" }
 
-    expected = %(<form action="http://www.example.com" method="post">Hello world!</form>)
+    expected = %(<form action="http://example.com" method="post">Hello world!</form>)
     assert_dom_equal expected, _erbout
   end
 
@@ -52,7 +52,7 @@ class FormTagHelperTest < Test::Unit::TestCase
     _erbout = ''
     form_tag("http://example.com", :method => :put) { _erbout.concat "Hello world!" }
 
-    expected = %(<form action="http://www.example.com" method="post"><div style='margin:0;padding:0'><input type="hidden" name="_method" value="put" /></div>Hello world!</form>)
+    expected = %(<form action="http://example.com" method="post"><div style='margin:0;padding:0'><input type="hidden" name="_method" value="put" /></div>Hello world!</form>)
     assert_dom_equal expected, _erbout
   end
 
@@ -60,6 +60,14 @@ class FormTagHelperTest < Test::Unit::TestCase
     actual = hidden_field_tag "id", 3
     expected = %(<input id="id" name="id" type="hidden" value="3" />)
     assert_dom_equal expected, actual
+  end
+
+  def test_file_field_tag
+    assert_dom_equal "<input name=\"picsplz\" type=\"file\" id=\"picsplz\" />", file_field_tag("picsplz")
+  end
+
+  def test_file_field_tag_with_options
+    assert_dom_equal "<input name=\"picsplz\" type=\"file\" id=\"picsplz\" class=\"pix\"/>", file_field_tag("picsplz", :class => "pix")
   end
 
   def test_password_field_tag
@@ -85,6 +93,9 @@ class FormTagHelperTest < Test::Unit::TestCase
     expected = %(<input id="opinion_-1" name="opinion" type="radio" value="-1" /><input id="opinion_1" name="opinion" type="radio" value="1" />)
     assert_dom_equal expected, actual
     
+    actual = radio_button_tag("person[gender]", "m")
+    expected = %(<input id="person_gender_m" name="person[gender]" type="radio" value="m" />)
+    assert_dom_equal expected, actual
   end
 
   def test_select_tag
@@ -102,6 +113,12 @@ class FormTagHelperTest < Test::Unit::TestCase
   def test_text_area_tag_size_symbol
     actual = text_area_tag "body", "hello world", :size => "20x40"
     expected = %(<textarea cols="20" id="body" name="body" rows="40">hello world</textarea>)
+    assert_dom_equal expected, actual
+  end
+
+  def test_text_area_tag_should_disregard_size_if_its_given_as_an_integer
+    actual = text_area_tag "body", "hello world", :size => 20
+    expected = %(<textarea id="body" name="body">hello world</textarea>)
     assert_dom_equal expected, actual
   end
 
@@ -132,7 +149,7 @@ class FormTagHelperTest < Test::Unit::TestCase
 
   def test_submit_tag
     assert_dom_equal(
-      %(<input name='commit' type='submit' value='Save' onclick="this.disabled=true;this.value='Saving...';this.form.submit();alert('hello!')" />),
+      %(<input name='commit' type='submit' value='Save' onclick="this.setAttribute('originalValue', this.value);this.disabled=true;this.value='Saving...';alert('hello!');result = (this.form.onsubmit ? (this.form.onsubmit() ? this.form.submit() : false) : this.form.submit());if (result == false) { this.value = this.getAttribute('originalValue'); this.disabled = false };return result" />),
       submit_tag("Save", :disable_with => "Saving...", :onclick => "alert('hello!')")
     )
   end
@@ -140,33 +157,24 @@ class FormTagHelperTest < Test::Unit::TestCase
   def test_pass
     assert_equal 1, 1
   end
-end
 
-class DeprecatedFormTagHelperTest < Test::Unit::TestCase
-  include ActionView::Helpers::UrlHelper
-  include ActionView::Helpers::TagHelper
-  include ActionView::Helpers::FormTagHelper
-  include ActionView::Helpers::TextHelper
-  include ActionView::Helpers::CaptureHelper
+  def test_field_set_tag
+    _erbout = ''
+    field_set_tag("Your details") { _erbout.concat "Hello world!" }
 
-  def setup
-    @controller = Class.new do
-      def url_for(options, *parameters_for_method_reference)
-        "http://www.example.com"
-      end
-    end
-    @controller = @controller.new
-  end
+    expected = %(<fieldset><legend>Your details</legend>Hello world!</fieldset>)
+    assert_dom_equal expected, _erbout
 
-  def test_start_form_tag_deprecation
-    assert_deprecated /start_form_tag/ do
-      start_form_tag
-    end
-  end
-  
-  def test_end_form_tag_deprecation
-    assert_deprecated /end_form_tag/ do
-      end_form_tag
-    end
+    _erbout = ''
+    field_set_tag { _erbout.concat "Hello world!" }
+
+    expected = %(<fieldset>Hello world!</fieldset>)
+    assert_dom_equal expected, _erbout
+    
+    _erbout = ''
+    field_set_tag('') { _erbout.concat "Hello world!" }
+
+    expected = %(<fieldset>Hello world!</fieldset>)
+    assert_dom_equal expected, _erbout
   end
 end

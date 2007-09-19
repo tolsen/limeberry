@@ -206,8 +206,29 @@ module ActiveRecord
         else
           spec = spec.symbolize_keys
           unless spec.key?(:adapter) then raise AdapterNotSpecified, "database configuration does not specify adapter" end
+
+          tried_gem = false
+          begin
+            require "active_record/connection_adapters/#{spec[:adapter]}_adapter"
+          rescue LoadError
+            raise if tried_gem
+
+            begin
+              require 'rubygems'
+              gem "activerecord-#{spec[:adapter]}-adapter"
+            rescue LoadError
+              raise "Please install the #{spec[:adapter]} adapter: `gem install activerecord-#{spec[:adapter]}-adapter` (#{$!})"
+            end
+
+            tried_gem = true
+            retry
+          end
+
           adapter_method = "#{spec[:adapter]}_connection"
-          unless respond_to?(adapter_method) then raise AdapterNotFound, "database configuration specifies nonexistent #{spec[:adapter]} adapter" end
+          if !respond_to?(adapter_method)
+            raise AdapterNotFound, "database configuration specifies nonexistent #{spec[:adapter]} adapter"
+          end
+
           remove_connection
           establish_connection(ConnectionSpecification.new(spec, adapter_method))
       end

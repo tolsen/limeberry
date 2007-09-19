@@ -23,4 +23,4 @@
 # SOFTWARE.
 
 xml.instruct!
-yield :layout
+xml << yield

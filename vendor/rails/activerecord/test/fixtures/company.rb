@@ -1,4 +1,8 @@
-class Company < ActiveRecord::Base
+class AbstractCompany < ActiveRecord::Base
+  self.abstract_class = true
+end
+
+class Company < AbstractCompany
   attr_protected :rating
   set_sequence_name :companies_nonstd_seq
 
@@ -46,6 +50,8 @@ end
 
 class ExclusivelyDependentFirm < Company
   has_one :account, :foreign_key => "firm_id", :dependent => :delete
+  has_many :dependent_sanitized_conditional_clients_of_firm, :foreign_key => "client_of", :class_name => "Client", :order => "id", :dependent => :delete_all, :conditions => "name = 'BigShot Inc.'"
+  has_many :dependent_conditional_clients_of_firm, :foreign_key => "client_of", :class_name => "Client", :order => "id", :dependent => :delete_all, :conditions => ["name = ?", 'BigShot Inc.']
 end
 
 class Client < Company

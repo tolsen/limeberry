@@ -25,12 +25,14 @@ module ActiveSupport #:nodoc:
         def to_param
           join '/'
         end
-        
-        def self.included(klass) #:nodoc:
-          klass.send(:alias_method, :to_default_s, :to_s)
-          klass.send(:alias_method, :to_s, :to_formatted_s)
+
+        def self.included(base) #:nodoc:
+          base.class_eval do
+            alias_method :to_default_s, :to_s
+            alias_method :to_s, :to_formatted_s
+          end
         end
-        
+
         def to_formatted_s(format = :default)
           case format
             when :db
@@ -63,7 +65,15 @@ module ActiveSupport #:nodoc:
 
           opts = options.merge({ :root => children })
 
-          options[:builder].tag!(root) { each { |e| e.to_xml(opts.merge!({ :skip_instruct => true })) } }
+          xml = options[:builder]
+          if empty?
+            xml.tag!(root, options[:skip_types] ? {} : {:type => "array"})
+          else
+            xml.tag!(root, options[:skip_types] ? {} : {:type => "array"}) {
+              yield xml if block_given?
+              each { |e| e.to_xml(opts.merge!({ :skip_instruct => true })) }
+            }
+          end
         end
 
       end

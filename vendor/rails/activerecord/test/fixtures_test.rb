@@ -12,12 +12,14 @@ class FixturesTest < Test::Unit::TestCase
   self.use_instantiated_fixtures = true
   self.use_transactional_fixtures = false
 
-  fixtures :topics, :developers, :accounts, :tasks, :categories, :funny_jokes
+  fixtures :topics, :developers, :accounts, :tasks, :categories, :funny_jokes, :binaries
 
-  FIXTURES = %w( accounts companies customers
+  FIXTURES = %w( accounts binaries companies customers
                  developers developers_projects entrants
                  movies projects subscribers topics tasks )
   MATCH_ATTRIBUTE_NAME = /[a-zA-Z][-_\w]*/
+
+  BINARY_FIXTURE_PATH = File.dirname(__FILE__) + '/fixtures/flowers.jpg'
 
   def test_clean_fixtures
     FIXTURES.each do |name|
@@ -100,7 +102,6 @@ class FixturesTest < Test::Unit::TestCase
     assert first
   end
 
-
   def test_bad_format
     path = File.join(File.dirname(__FILE__), 'fixtures', 'bad_fixtures')
     Dir.entries(path).each do |file|
@@ -174,7 +175,6 @@ class FixturesTest < Test::Unit::TestCase
     end
   end
 
-
   def test_yml_file_in_subdirectory
     assert_equal(categories(:sub_special_1).name, "A special category in a subdir file")
     assert_equal(categories(:sub_special_1).class, SpecialCategory)
@@ -185,7 +185,11 @@ class FixturesTest < Test::Unit::TestCase
     assert_equal(categories(:sub_special_3).class, SpecialCategory)
   end
 
-
+  def test_binary_in_fixtures
+    assert_equal 1, @binaries.size
+    data = File.read(BINARY_FIXTURE_PATH).freeze
+    assert_equal data, @flowers.data
+  end
 end
 
 if Account.connection.respond_to?(:reset_pk_sequence!)
@@ -254,6 +258,19 @@ class FixturesWithoutInstantiationTest < Test::Unit::TestCase
     assert_equal "The First Topic", topics(:first).title
     assert_equal "Jamis", developers(:jamis).name
     assert_equal 50, accounts(:signals37).credit_limit
+  end
+
+  def test_accessor_methods_with_multiple_args
+    assert_equal 2, topics(:first, :second).size
+    assert_raise(StandardError) { topics([:first, :second]) }
+  end
+
+  uses_mocha 'reloading_fixtures_through_accessor_methods' do
+    def test_reloading_fixtures_through_accessor_methods
+      assert_equal "The First Topic", topics(:first).title
+      @loaded_fixtures['topics']['first'].expects(:find).returns(stub(:title => "Fresh Topic!"))
+      assert_equal "Fresh Topic!", topics(:first, true).title
+    end
   end
 end
 
@@ -398,4 +415,13 @@ class FixturesBrokenRollbackTest < Test::Unit::TestCase
     def load_fixtures
       raise 'argh'
     end
+end
+
+class LoadAllFixturesTest < Test::Unit::TestCase
+  write_inheritable_attribute :fixture_path, File.join(File.dirname(__FILE__), '/fixtures/all')
+  fixtures :all
+
+  def test_all_there
+    assert_equal %w(developers people tasks), fixture_table_names.sort
+  end
 end

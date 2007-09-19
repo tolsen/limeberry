@@ -1,4 +1,7 @@
 require 'cgi'
+require 'uri'
+require 'action_controller/polymorphic_routes'
+require 'action_controller/routing_optimisation'
 
 class Object
   def to_param
@@ -186,11 +189,10 @@ module ActionController
   #  map.geocode 'geocode/:postalcode', :controller => 'geocode',
   #              :action => 'show', :postalcode => /\d{5}(-\d{4})?/
   #
-  # or  more formally:
+  # or, more formally:
   #
   #   map.geocode 'geocode/:postalcode', :controller => 'geocode', 
-  #                      :action => 'show', 
-  #                      :requirements { :postalcode => /\d{5}(-\d{4})?/ }
+  #               :action => 'show', :requirements => { :postalcode => /\d{5}(-\d{4})?/ }
   #
   # == Route globbing
   #
@@ -204,7 +206,7 @@ module ActionController
   #
   # You can reload routes if you feel you must:
   #
-  #  Action::Controller::Routes.reload
+  #  ActionController::Routing::Routes.reload
   #
   # This will clear all named routes and reload routes.rb
   #
@@ -248,10 +250,22 @@ module ActionController
   module Routing
     SEPARATORS = %w( / ; . , ? )
 
+    HTTP_METHODS = [:get, :head, :post, :put, :delete]
+
     # The root paths which may contain controller files
     mattr_accessor :controller_paths
     self.controller_paths = []
-
+    
+    # Indicates whether or not optimise the generated named
+    # route helper methods
+    mattr_accessor :optimise_named_routes
+    self.optimise_named_routes = true
+    
+    # A helper module to hold URL related helpers.
+    module Helpers
+      include PolymorphicRoutes
+    end
+    
     class << self
       def with_controllers(names)
         prior_controllers = @possible_controllers
@@ -317,12 +331,24 @@ module ActionController
     end
   
     class Route #:nodoc:
-      attr_accessor :segments, :requirements, :conditions
+      attr_accessor :segments, :requirements, :conditions, :optimise
       
       def initialize
         @segments = []
         @requirements = {}
         @conditions = {}
+      end
+      
+      # Indicates whether the routes should be optimised with the string interpolation
+      # version of the named routes methods.
+      def optimise?
+        @optimise && ActionController::Routing::optimise_named_routes
+      end
+      
+      def segment_keys
+        segments.collect do |segment|
+          segment.key if segment.respond_to? :key
+        end.compact
       end
   
       # Write and compile a +generate+ method for this Route.
@@ -373,6 +399,7 @@ module ActionController
         end
         requirement_conditions * ' && ' unless requirement_conditions.empty?
       end
+      
       def generation_structure
         segments.last.string_structure segments[0..-2]
       end
@@ -411,7 +438,7 @@ module ActionController
       def recognition_extraction
         next_capture = 1
         extraction = segments.collect do |segment|
-          x = segment.match_extraction next_capture
+          x = segment.match_extraction(next_capture)
           next_capture += Regexp.new(segment.regexp_chunk).number_of_captures
           x
         end
@@ -451,26 +478,18 @@ module ActionController
       # is given (as an array), only the keys indicated will be used to build
       # the query string. The query string will correctly build array parameter
       # values.
-      def build_query_string(hash, only_keys=nil)
+      def build_query_string(hash, only_keys = nil)
         elements = []
 
-        only_keys ||= hash.keys
-        
-        only_keys.each do |key|
-          value = hash[key] or next
-          key = CGI.escape key.to_s
-          if value.class == Array
-            key <<  '[]'
-          else    
-            value = [ value ] 
-          end     
-          value.each { |val| elements << "#{key}=#{CGI.escape(val.to_param.to_s)}" }
-        end     
-        
-        query_string = "?#{elements.join("&")}" unless elements.empty?
-        query_string || ""
+        (only_keys || hash.keys).each do |key|
+          if value = hash[key]
+            elements << value.to_query(key)
+          end
+        end
+
+        elements.empty? ? '' : "?#{elements.sort * '&'}"
       end
-  
+
       # Write the real recognition implementation and then resend the message.
       def recognize(path, environment={})
         write_recognition
@@ -517,9 +536,9 @@ module ActionController
           end
         end
       end
-  
+
       def matches_controller_and_action?(controller, action)
-        unless @matching_prepared
+        unless defined? @matching_prepared
           @controller_requirement = requirement_for(:controller)
           @action_requirement = requirement_for(:action)
           @matching_prepared = true
@@ -544,10 +563,13 @@ module ActionController
         end
         nil
       end
-  
+
     end
 
     class Segment #:nodoc:
+      RESERVED_PCHAR = ':@&=+$'
+      UNSAFE_PCHAR = Regexp.new("[^#{URI::REGEXP::PATTERN::UNRESERVED}#{RESERVED_PCHAR}]", false, 'N').freeze
+
       attr_accessor :is_optional
       alias_method :optional?, :is_optional
 
@@ -558,7 +580,7 @@ module ActionController
       def extraction_code
         nil
       end
-  
+
       # Continue generating string for the prior segments.
       def continue_string_structure(prior_segments)
         if prior_segments.empty?
@@ -568,7 +590,11 @@ module ActionController
           prior_segments.last.string_structure(new_priors)
         end
       end
-  
+
+      def interpolation_chunk
+        URI.escape(value, UNSAFE_PCHAR)
+      end
+
       # Return a string interpolation statement for this segment and those before it.
       def interpolation_statement(prior_segments)
         chunks = prior_segments.collect { |s| s.interpolation_chunk }
@@ -612,11 +638,11 @@ module ActionController
       end
   
       def interpolation_chunk
-        raw? ? value : CGI.escape(value)
+        raw? ? value : super
       end
   
       def regexp_chunk
-        chunk = Regexp.escape value
+        chunk = Regexp.escape(value)
         optional? ? Regexp.optionalize(chunk) : chunk
       end
   
@@ -668,7 +694,7 @@ module ActionController
       end
   
       def extract_value
-        "#{local_name} = hash[:#{key}] #{"|| #{default.inspect}" if default}"
+        "#{local_name} = hash[:#{key}] && hash[:#{key}].to_param #{"|| #{default.inspect}" if default}"
       end
       def value_check
         if default # Then we know it won't be nil
@@ -692,8 +718,8 @@ module ActionController
         s << "\n#{expiry_statement}"
       end
   
-      def interpolation_chunk
-        "\#{CGI.escape(#{local_name}.to_s)}"
+      def interpolation_chunk(value_code = "#{local_name}.to_s")
+        "\#{URI.escape(#{value_code}, ActionController::Routing::Segment::UNSAFE_PCHAR)}"
       end
   
       def string_structure(prior_segments)
@@ -724,10 +750,17 @@ module ActionController
         optional? ? Regexp.optionalize(pattern) : pattern
       end
       def match_extraction(next_capture)
-        hangon = (default ? "|| #{default.inspect}" : "if match[#{next_capture}]")
-        
-        # All non code-related keys (such as :id, :slug) have to be unescaped as other CGI params
-        "params[:#{key}] = match[#{next_capture}] #{hangon}"
+        # All non code-related keys (such as :id, :slug) are URI-unescaped as
+        # path parameters.
+        default_value = default ? default.inspect : nil
+        %[
+          value = if (m = match[#{next_capture}])
+            URI.unescape(m)
+          else
+            #{default_value}
+          end
+          params[:#{key}] = value if value
+        ]
       end
   
       def optionality_implied?
@@ -742,10 +775,9 @@ module ActionController
         "(?i-:(#{(regexp || Regexp.union(*possible_names)).source}))"
       end
 
-      # Don't CGI.escape the controller name, since it may have slashes in it,
-      # like admin/foo.
-      def interpolation_chunk
-        "\#{#{local_name}.to_s}"
+      # Don't URI.escape the controller name since it may contain slashes.
+      def interpolation_chunk(value_code = "#{local_name}.to_s")
+        "\#{#{value_code}}"
       end
 
       # Make sure controller names like Admin/Content are correctly normalized to
@@ -764,9 +796,11 @@ module ActionController
     end
 
     class PathSegment < DynamicSegment #:nodoc:
-      EscapedSlash = CGI.escape("/")
-      def interpolation_chunk
-        "\#{CGI.escape(#{local_name}.to_s).gsub(#{EscapedSlash.inspect}, '/')}"
+      RESERVED_PCHAR = "#{Segment::RESERVED_PCHAR}/"
+      UNSAFE_PCHAR = Regexp.new("[^#{URI::REGEXP::PATTERN::UNRESERVED}#{RESERVED_PCHAR}]", false, 'N').freeze
+
+      def interpolation_chunk(value_code = "#{local_name}.to_s")
+        "\#{URI.escape(#{value_code}, ActionController::Routing::PathSegment::UNSAFE_PCHAR)}"
       end
 
       def default
@@ -788,7 +822,7 @@ module ActionController
       class Result < ::Array #:nodoc:
         def to_s() join '/' end 
         def self.new_escaped(strings)
-          new strings.collect {|str| CGI.unescape str}
+          new strings.collect {|str| URI.unescape str}
         end     
       end     
     end
@@ -854,6 +888,14 @@ module ActionController
       # and requirements.
       def divide_route_options(segments, options)
         options = options.dup
+        
+        if options[:namespace]
+          options[:controller] = "#{options[:path_prefix]}/#{options[:controller]}"
+          options.delete(:path_prefix)
+          options.delete(:name_prefix)
+          options.delete(:namespace)
+        end        
+                
         requirements = (options.delete(:requirements) || {}).dup
         defaults     = (options.delete(:defaults)     || {}).dup
         conditions   = (options.delete(:conditions)   || {}).dup
@@ -863,7 +905,7 @@ module ActionController
           hash = (path_keys.include?(key) && ! value.is_a?(Regexp)) ? defaults : requirements
           hash[key] = value
         end
-    
+            
         [defaults, requirements, conditions]
       end
       
@@ -945,17 +987,24 @@ module ActionController
       def build(path, options)
         # Wrap the path with slashes
         path = "/#{path}" unless path[0] == ?/
-        path = "#{path}/" unless path[-1] == ?/
+        path = "#{path}/" unless path[-1] == ?/    
+        
+        path = "/#{options[:path_prefix]}#{path}" if options[:path_prefix]
     
         segments = segments_for_route_path(path)
         defaults, requirements, conditions = divide_route_options(segments, options)
         requirements = assign_route_options(segments, defaults, requirements)
 
         route = Route.new
+
         route.segments = segments
         route.requirements = requirements
         route.conditions = conditions
-
+        
+        # Routes cannot use the current string interpolation method
+        # if there are user-supplied :requirements as the interpolation
+        # code won't raise RoutingErrors when generating
+        route.optimise = !options.key?(:requirements) 
         if !route.significant_keys.include?(:action) && !route.requirements[:action]
           route.requirements[:action] = "index"
           route.significant_keys << :action
@@ -986,17 +1035,34 @@ module ActionController
           @set.add_route(path, options)
         end
 
+        # Creates a named route called "root" for matching the root level request.
+        def root(options = {})
+          named_route("root", '', options)
+        end
+
         def named_route(name, path, options = {})
           @set.add_named_route(name, path, options)
         end
-
-        # Added deprecation notice for anyone who already added a named route called "root".
-        # It'll be used as a shortcut for map.connect '' in Rails 2.0.
-        def root(*args, &proc)
-          super unless args.length >= 1 && proc.nil?
-          @set.add_named_route("root", *args)
+        
+        # Enables the use of resources in a module by setting the name_prefix, path_prefix, and namespace for the model.
+        # Example:
+        #
+        #   map.namespace(:admin) do |admin|
+        #     admin.resources :products,
+        #       :has_many => [ :tags, :images, :variants ]
+        #   end
+        #
+        # This will create admin_products_url pointing to "admin/products", which will look for an Admin::ProductsController.
+        # It'll also create admin_product_tags_url pointing to "admin/products/#{product_id}/tags", which will look for
+        # Admin::TagsController.
+        def namespace(name, options = {}, &block)
+          if options[:namespace]
+            with_options({:path_prefix => "#{options.delete(:path_prefix)}/#{name}", :name_prefix => "#{options.delete(:name_prefix)}#{name}_", :namespace => "#{options.delete(:namespace)}#{name}/" }.merge(options), &block)
+          else
+            with_options({:path_prefix => name, :name_prefix => "#{name}_", :namespace => "#{name}/" }.merge(options), &block)
+          end
         end
-        deprecate :root => "(as the the label for a named route) will become a shortcut for map.connect '', so find another name"
+        
 
         def method_missing(route_name, *args, &proc)
           super unless args.length >= 1 && proc.nil?
@@ -1009,7 +1075,7 @@ module ActionController
       # named routes.
       class NamedRouteCollection #:nodoc:
         include Enumerable
-
+        include ActionController::Routing::Optimisation
         attr_reader :routes, :helpers
 
         def initialize
@@ -1052,7 +1118,16 @@ module ActionController
           routes.length
         end
 
-        def install(destinations = [ActionController::Base, ActionView::Base])
+        def reset!
+          old_routes = routes.dup
+          clear!
+          old_routes.each do |name, route|
+            add(name, route)
+          end
+        end
+
+        def install(destinations = [ActionController::Base, ActionView::Base], regenerate = false)
+          reset! if regenerate
           Array(destinations).each { |dest| dest.send :include, @module }
         end
 
@@ -1083,51 +1158,56 @@ module ActionController
             @module.send(:protected, selector)
             helpers << selector
           end
-          
+
           def define_url_helper(route, name, kind, options)
             selector = url_helper_name(name, kind)
-            
             # The segment keys used for positional paramters
-            segment_keys = route.segments.collect do |segment|
-              segment.key if segment.respond_to? :key
-            end.compact
+
             hash_access_method = hash_access_name(name, kind)
-            
+
+            # allow ordered parameters to be associated with corresponding
+            # dynamic segments, so you can do
+            #
+            #   foo_url(bar, baz, bang)
+            #
+            # instead of
+            #
+            #   foo_url(:bar => bar, :baz => baz, :bang => bang)
+            #
+            # Also allow options hash, so you can do
+            #
+            #   foo_url(bar, baz, bang, :sort_by => 'baz')
+            #
             @module.send :module_eval, <<-end_eval # We use module_eval to avoid leaks
               def #{selector}(*args)
+                #{generate_optimisation_block(route, kind)}
+
                 opts = if args.empty? || Hash === args.first
                   args.first || {}
                 else
-                  # allow ordered parameters to be associated with corresponding
-                  # dynamic segments, so you can do
-                  #
-                  #   foo_url(bar, baz, bang)
-                  #
-                  # instead of
-                  #
-                  #   foo_url(:bar => bar, :baz => baz, :bang => bang)
-                  args.zip(#{segment_keys.inspect}).inject({}) do |h, (v, k)|
+                  options = args.last.is_a?(Hash) ? args.pop : {}
+                  args = args.zip(#{route.segment_keys.inspect}).inject({}) do |h, (v, k)|
                     h[k] = v
                     h
                   end
+                  options.merge(args)
                 end
-                
+
                 url_for(#{hash_access_method}(opts))
               end
             end_eval
             @module.send(:protected, selector)
             helpers << selector
           end
-          
       end
-  
+
       attr_accessor :routes, :named_routes
   
       def initialize
         self.routes = []
         self.named_routes = NamedRouteCollection.new
       end
-
+      
       # Subclasses and plugins may override this method to specify a different
       # RouteBuilder instance, so that other route DSL's can be created.
       def builder
@@ -1137,14 +1217,19 @@ module ActionController
       def draw
         clear!
         yield Mapper.new(self)
-        named_routes.install
+        install_helpers
       end
-  
+      
       def clear!
         routes.clear
         named_routes.clear
         @combined_regexp = nil
         @routes_by_controller = nil
+      end
+      
+      def install_helpers(destinations = [ActionController::Base, ActionView::Base], regenerate_code = false)
+        Array(destinations).each { |d| d.send :include, Helpers }
+        named_routes.install(destinations, regenerate_code)
       end
 
       def empty?
@@ -1155,14 +1240,27 @@ module ActionController
         Routing.use_controllers! nil # Clear the controller cache so we may discover new ones
         clear!
         load_routes!
-        named_routes.install
+        install_helpers
       end
 
-      alias reload load!
-
+      # reload! will always force a reload whereas load checks the timestamp first
+      alias reload! load!
+      
+      def reload
+        if @routes_last_modified
+          mtime=File.stat("#{RAILS_ROOT}/config/routes.rb").mtime
+          # if it hasn't been changed, then just return
+          return if mtime == @routes_last_modified
+          # if it has changed then record the new time and fall to the load! below
+          @routes_last_modified=mtime
+        end
+        load!
+      end
+      
       def load_routes!
         if defined?(RAILS_ROOT) && defined?(::ActionController::Routing::Routes) && self == ::ActionController::Routing::Routes
           load File.join("#{RAILS_ROOT}/config/routes.rb")
+          @routes_last_modified=File.stat("#{RAILS_ROOT}/config/routes.rb").mtime
         else
           add_route ":controller/:action/:id"
         end
@@ -1175,7 +1273,9 @@ module ActionController
       end
   
       def add_named_route(name, path, options = {})
-        named_routes[name] = add_route(path, options)
+        # TODO - is options EVER used?
+        name = options[:name_prefix] + name.to_s if options[:name_prefix]
+        named_routes[name.to_sym] = add_route(path, options)
       end
   
       def options_as_params(options)
@@ -1190,16 +1290,15 @@ module ActionController
         #
         # great fun, eh?
 
-        options_as_params = options[:controller] ? { :action => "index" } : {}
-        options.each do |k, value|
-          options_as_params[k] = value.to_param
-        end
+        options_as_params = options.clone
+        options_as_params[:action] ||= 'index' if options[:controller]
+        options_as_params[:action] = options_as_params[:action].to_s if options_as_params[:action]
         options_as_params
       end
   
       def build_expiry(options, recall)
         recall.inject({}) do |expiry, (key, recalled_value)|
-          expiry[key] = (options.key?(key) && options[key] != recalled_value)
+          expiry[key] = (options.key?(key) && options[key].to_param != recalled_value.to_param)
           expiry
         end
       end
@@ -1216,6 +1315,7 @@ module ActionController
 
       def generate(options, recall = {}, method=:generate)
         named_route_name = options.delete(:use_route)
+        generate_all = options.delete(:generate_all)
         if named_route_name
           named_route = named_routes[named_route_name]
           options = named_route.parameter_shell.merge(options)
@@ -1254,6 +1354,14 @@ module ActionController
           action = merged[:action]
 
           raise RoutingError, "Need controller and action!" unless controller && action
+          
+          if generate_all
+            # Used by caching to expire all paths for a resource
+            return routes.collect do |route|
+              route.send(method, options, merged, expire_on)
+            end.compact
+          end
+          
           # don't use the recalled keys when determining which routes to check
           routes = routes_by_controller[controller][action][options.keys.sort_by { |x| x.object_id }]
 
@@ -1274,7 +1382,7 @@ module ActionController
         else
           required_segments = named_route.segments.select {|seg| (!seg.optional?) && (!seg.is_a?(DividerSegment)) }
           required_keys_or_values = required_segments.map { |seg| seg.key rescue seg.value } # we want either the key or the value from the segment
-          raise RoutingError, "#{named_route_name}_url failed to generate from #{options.inspect} - you may have ambiguous routes, or you may need to supply additional parameters for this route.  content_url has the following required parameters: #{required_keys_or_values.inspect} - are they all satisifed?"
+          raise RoutingError, "#{named_route_name}_url failed to generate from #{options.inspect} - you may have ambiguous routes, or you may need to supply additional parameters for this route.  content_url has the following required parameters: #{required_keys_or_values.inspect} - are they all satisfied?"
         end
       end
   
@@ -1285,11 +1393,19 @@ module ActionController
       end
   
       def recognize_path(path, environment={})
-        path = CGI.unescape(path)
         routes.each do |route|
           result = route.recognize(path, environment) and return result
         end
-        raise RoutingError, "no route found to match #{path.inspect} with #{environment.inspect}"
+
+        allows = HTTP_METHODS.select { |verb| routes.find { |r| r.recognize(path, :method => verb) } }
+
+        if environment[:method] && !HTTP_METHODS.include?(environment[:method])
+          raise NotImplemented.new(*allows)
+        elsif !allows.empty?
+          raise MethodNotAllowed.new(*allows)
+        else
+          raise RoutingError, "No route matches #{path.inspect} with #{environment.inspect}"
+        end
       end
   
       def routes_by_controller
@@ -1337,4 +1453,3 @@ module ActionController
     Routes = RouteSet.new
   end
 end
-

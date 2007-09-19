@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/../abstract_unit'
+require "#{File.dirname(__FILE__)}/../abstract_unit"
 require "#{File.dirname(__FILE__)}/../testing_sandbox"
 
 class TextHelperTest < Test::Unit::TestCase
@@ -29,6 +29,11 @@ class TextHelperTest < Test::Unit::TestCase
   def test_truncate
     assert_equal "Hello World!", truncate("Hello World!", 12)
     assert_equal "Hello Wor...", truncate("Hello World!!", 12)
+  end
+
+  def test_truncate_should_use_default_length_of_30
+    str = "This is a string that will go longer then the default truncate length of 30"
+    assert_equal str[0...27] + "...", truncate(str)
   end
 
   def test_truncate_multibyte
@@ -65,6 +70,8 @@ class TextHelperTest < Test::Unit::TestCase
       "This text is not changed because we supplied an empty phrase",
       highlight("This text is not changed because we supplied an empty phrase", nil)
     )
+
+    assert_equal '   ', highlight('   ', 'blank text is returned verbatim')
   end
 
   def test_highlighter_with_regexp
@@ -82,6 +89,10 @@ class TextHelperTest < Test::Unit::TestCase
       "This is a <strong class=\"highlight\">beautiful? morning</strong>",
       highlight("This is a beautiful? morning", "beautiful? morning")
     )
+  end
+
+  def test_highlighting_multiple_phrases_in_one_pass
+    assert_equal %(<em>wow</em> <em>em</em>), highlight('wow em', %w(wow em), '<em>\1</em>')
   end
 
   def test_excerpt
@@ -117,6 +128,20 @@ class TextHelperTest < Test::Unit::TestCase
     assert_equal("1,066 counts", pluralize('1,066', "count"))
     assert_equal("1.25 counts", pluralize('1.25', "count"))
     assert_equal("2 counters", pluralize(2, "count", "counters"))
+    assert_equal("0 counters", pluralize(nil, "count", "counters"))
+    assert_equal("2 people", pluralize(2, "person"))
+    assert_equal("10 buffaloes", pluralize(10, "buffalo")) 
+  end
+
+  uses_mocha("should_just_add_s_for_pluralize_without_inflector_loaded") do
+    def test_should_just_add_s_for_pluralize_without_inflector_loaded
+      Object.expects(:const_defined?).with("Inflector").times(4).returns(false)
+      assert_equal("1 count", pluralize(1, "count"))
+      assert_equal("2 persons", pluralize(2, "person"))
+      assert_equal("2 personss", pluralize("2", "persons"))
+      assert_equal("2 counts", pluralize(2, "count"))
+      assert_equal("10 buffalos", pluralize(10, "buffalo"))
+    end
   end
 
   def test_auto_link_parsing
@@ -132,6 +157,7 @@ class TextHelperTest < Test::Unit::TestCase
               http://www.rubyonrails.com/contact;new?with=query&string=params
               http://www.rubyonrails.com/~minam/contact;new?with=query&string=params
               http://en.wikipedia.org/wiki/Wikipedia:Today%27s_featured_picture_%28animation%29/January_20%2C_2007
+              http://www.mail-archive.com/rails@lists.rubyonrails.org/
             )
 
     urls.each do |url|
@@ -161,6 +187,8 @@ class TextHelperTest < Test::Unit::TestCase
     link8_result = %{<a href="#{link8_raw}">#{link8_raw}</a>}
     link9_raw    = 'http://business.timesonline.co.uk/article/0,,9065-2473189,00.html'
     link9_result = %{<a href="#{link9_raw}">#{link9_raw}</a>}
+    link10_raw    = 'http://www.mail-archive.com/ruby-talk@ruby-lang.org/'
+    link10_result = %{<a href="#{link10_raw}">#{link10_raw}</a>}
 
     assert_equal %(hello #{email_result}), auto_link("hello #{email_raw}", :email_addresses)
     assert_equal %(Go to #{link_result}), auto_link("Go to #{link_raw}", :urls)
@@ -200,6 +228,7 @@ class TextHelperTest < Test::Unit::TestCase
     assert_equal %(<p>#{link9_result} Link</p>), auto_link("<p>#{link9_raw} Link</p>")
     assert_equal %(Go to #{link9_result}.), auto_link(%(Go to #{link9_raw}.))
     assert_equal %(<p>Go to #{link9_result}. seriously, #{link9_result}? i think I'll say hello to #{email_result}. instead.</p>), auto_link(%(<p>Go to #{link9_raw}. seriously, #{link9_raw}? i think I'll say hello to #{email_raw}. instead.</p>))
+    assert_equal %(<p>#{link10_result} Link</p>), auto_link("<p>#{link10_raw} Link</p>")
     assert_equal '', auto_link(nil)
     assert_equal '', auto_link('')
   end
@@ -233,7 +262,7 @@ class TextHelperTest < Test::Unit::TestCase
   def test_sanitize_script
     raw = "<script language=\"Javascript\">blah blah blah</script>"
     result = sanitize(raw)
-    assert_equal %(&lt;script language="Javascript">blah blah blah&lt;/script>), result
+    assert_equal %{&lt;script language="Javascript">blah blah blah&lt;/script>}, result
   end
 
   def test_sanitize_js_handlers

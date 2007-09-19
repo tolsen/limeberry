@@ -25,7 +25,12 @@ class CreatePaths < ActiveRecord::Migration
     create_table "paths" do |t|
       t.column "parent_id", :integer
       t.column "bind_id", :integer
-      t.column "url", :string, :limit => 767, :null => false
+
+      # limit is really low because utf8 chars can be up to 3 bytes
+      # which means we can only guarantee uniqueness for the first
+      # 255 bytes using a UNIQUE INDEX
+      t.column "url", :string, :limit => 255, :null => false
+
       t.column "lastmodified", :datetime
     end
 

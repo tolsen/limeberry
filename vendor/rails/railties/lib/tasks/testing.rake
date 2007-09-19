@@ -40,17 +40,17 @@ end
 
 desc 'Test all units and functionals'
 task :test do
-  exceptions = ["test:units", "test:functionals", "test:integration"].collect do |task|
+  %w(test:units test:functionals test:integration).collect do |task|
     begin
       Rake::Task[task].invoke
       nil
     rescue => e
-      e
+      e unless e.message.starts_with?('Command failed with status (1)')
     end
-  end.compact
-  
-  exceptions.each {|e| puts e;puts e.backtrace }
-  raise "Test failures" unless exceptions.empty?
+  end.compact.each do |e|
+    puts e
+    puts "  #{e.backtrace * "  \n"}"
+  end
 end
 
 namespace :test do
@@ -111,10 +111,10 @@ namespace :test do
     if ENV['PLUGIN']
       t.pattern = "vendor/plugins/#{ENV['PLUGIN']}/test/**/*_test.rb"
     else
-      t.pattern = 'vendor/plugins/**/test/**/*_test.rb'
+      t.pattern = 'vendor/plugins/*/**/test/**/*_test.rb'
     end
 
     t.verbose = true
   end
-  Rake::Task['test:plugins'].comment = "Run the plugin tests in vendor/plugins/**/test (or specify with PLUGIN=name)"
+  Rake::Task['test:plugins'].comment = "Run the plugin tests in vendor/plugins/*/**/test (or specify with PLUGIN=name)"
 end

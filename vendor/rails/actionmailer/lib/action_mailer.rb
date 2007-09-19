@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2004-2006 David Heinemeier Hansson
+# Copyright (c) 2004-2007 David Heinemeier Hansson
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -37,6 +37,7 @@ require 'action_mailer/base'
 require 'action_mailer/helpers'
 require 'action_mailer/mail_helper'
 require 'action_mailer/quoting'
+require 'action_mailer/test_helper'
 require 'tmail'
 require 'net/smtp'
 

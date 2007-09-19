@@ -81,32 +81,12 @@ class TransactionTest < Test::Unit::TestCase
 
     assert @first.approved?, "First should still be changed in the objects"
     assert !@second.approved?, "Second should still be changed in the objects"
-    
+
     assert !Topic.find(1).approved?, "First shouldn't have been approved"
     assert Topic.find(2).approved?, "Second should still be approved"
   end
-  
-  def test_failing_with_object_rollback
-    assert !@first.approved?, "First should be unapproved initially"
 
-    begin
-      assert_deprecated /Object transactions/ do
-        Topic.transaction(@first, @second) do
-          @first.approved  = true
-          @second.approved = false
-          @first.save
-          @second.save
-          raise "Bad things!"
-        end
-      end
-    rescue
-      # caught it
-    end
-    
-    assert !@first.approved?, "First shouldn't have been approved"
-    assert @second.approved?, "Second should still be approved"
-  end
-  
+
   def test_callback_rollback_in_save
     add_exception_raising_after_save_callback_to_topic
 
@@ -119,6 +99,38 @@ class TransactionTest < Test::Unit::TestCase
       assert !Topic.find(1).approved?
     ensure
       remove_exception_raising_after_save_callback_to_topic
+    end
+  end
+
+  def test_callback_rollback_in_create
+    new_topic = Topic.new(
+      :title => "A new topic",
+      :author_name => "Ben",
+      :author_email_address => "ben@example.com",
+      :written_on => "2003-07-16t15:28:11.2233+01:00",
+      :last_read => "2004-04-15",
+      :bonus_time => "2005-01-30t15:28:00.00+01:00",
+      :content => "Have a nice day",
+      :approved => false)
+    new_record_snapshot = new_topic.new_record?
+    id_present = new_topic.has_attribute?(Topic.primary_key)
+    id_snapshot = new_topic.id
+
+    # Make sure the second save gets the after_create callback called.
+    2.times do
+      begin
+        add_exception_raising_after_create_callback_to_topic
+        new_topic.approved = true
+        new_topic.save
+        flunk
+      rescue => e
+        assert_equal "Make the transaction rollback", e.message
+        assert_equal new_record_snapshot, new_topic.new_record?, "The topic should have its old new_record value"
+        assert_equal id_snapshot, new_topic.id, "The topic should have its old id"
+        assert_equal id_present, new_topic.has_attribute?(Topic.primary_key)
+      ensure
+        remove_exception_raising_after_create_callback_to_topic
+      end
     end
   end
 
@@ -136,13 +148,52 @@ class TransactionTest < Test::Unit::TestCase
     assert !Topic.find(2).approved?, "Second should have been unapproved"
   end
 
+  def test_manually_rolling_back_a_transaction
+    Topic.transaction do
+      @first.approved  = true
+      @second.approved = false
+      @first.save
+      @second.save
+
+      raise ActiveRecord::Rollback
+    end
+
+    assert @first.approved?, "First should still be changed in the objects"
+    assert !@second.approved?, "Second should still be changed in the objects"
+
+    assert !Topic.find(1).approved?, "First shouldn't have been approved"
+    assert Topic.find(2).approved?, "Second should still be approved"
+  end
+
+  uses_mocha 'mocking connection.commit_db_transaction' do
+    def test_rollback_when_commit_raises
+      Topic.connection.expects(:begin_db_transaction)
+      Topic.connection.expects(:commit_db_transaction).raises('OH NOES')
+      Topic.connection.expects(:rollback_db_transaction)
+
+      assert_raise RuntimeError do
+        Topic.transaction do
+          # do nothing
+        end
+      end
+    end
+  end
+
   private
     def add_exception_raising_after_save_callback_to_topic
       Topic.class_eval { def after_save() raise "Make the transaction rollback" end }
     end
-    
+
     def remove_exception_raising_after_save_callback_to_topic
       Topic.class_eval { remove_method :after_save }
+    end
+
+    def add_exception_raising_after_create_callback_to_topic
+      Topic.class_eval { def after_create() raise "Make the transaction rollback" end }
+    end
+
+    def remove_exception_raising_after_create_callback_to_topic
+      Topic.class_eval { remove_method :after_create }
     end
 end
 
@@ -226,5 +277,121 @@ if current_adapter?(:PostgreSQLAdapter)
 
       assert_equal original_salary, Developer.find(1).salary
     end
+  end
+end
+
+if current_adapter?(:PostgreSQLAdapter) or current_adapter?(:MysqlAdapter)
+  class NestedTransactionsTest < TransactionTest
+
+    def test_nested_explicit_transactions_with_forced_nesting
+      Topic.transaction do
+        @first.approved = true
+        @first.save
+        @second.approved = true
+        @second.save
+        begin
+          Topic.transaction :force => true do
+            @second.approved = false
+            @second.save
+            raise "Bad things!"
+          end
+        rescue
+          # ignore the exception
+        end
+      end
+
+      assert Topic.find(1).approved?, "First should have been approved"
+      assert Topic.find(2).approved?, "Second should have been approved"
+    end
+
+    def test_nested_explicit_transactions_without_forced_nesting
+      Topic.transaction do
+        @first.approved = true
+        @first.save
+        @second.approved = true
+        @second.save
+        begin
+          Topic.transaction do
+            @second.approved = false
+            @second.save
+            raise "Bad things!"
+          end
+        rescue
+          # ignore the exception
+        end
+      end
+
+      assert Topic.find(1).approved?, "First should have been approved"
+      assert !Topic.find(2).approved?, "Second should have been unapproved"
+    end
+
+    def test_transaction_type_save_none
+      with_topic_transaction_options :save => :none do
+        assert_queries(1) { @first.save! }
+      end
+    end
+
+    def test_transaction_type_save_flat
+      with_topic_transaction_options :save => :flat do
+        assert_queries(3) { @first.save! }
+      end
+    end
+
+    def test_transaction_type_save_flat_inside_transaction
+      with_topic_transaction_options :save => :flat do
+        Topic.transaction do
+          assert_queries(1) { @first.save! }
+        end
+      end
+    end
+
+    def test_transaction_type_save_nested
+      with_topic_transaction_options :save => :nested do
+        assert_queries(3) { @first.save! }
+      end
+    end
+
+    def test_transaction_type_save_nested_inside_transaction
+      with_topic_transaction_options :save => :nested do
+        Topic.transaction do
+          assert_queries(3) { @first.save! }
+        end
+      end
+    end
+
+    def test_transaction_type_destroy_none
+      with_topic_transaction_options :destroy => :none do
+        assert_queries(8) { assert @first.destroy }
+      end
+    end
+
+    def test_transaction_type_destroy_flat
+      with_topic_transaction_options :destroy => :flat do
+        assert_queries(10) { assert @first.destroy }
+      end
+    end
+
+    def test_transaction_type_destroy_nested
+      with_topic_transaction_options :destroy => :nested do
+        assert_queries(12) { assert @first.destroy }
+      end
+    end
+
+    private
+      def with_topic_transaction_options(options)
+        # NOTE Reply does not inherit this because the class
+        # has already been loaded
+        old_types_topic = Topic.send(:get_transaction_types)
+        old_types_reply = Topic.send(:get_transaction_types)
+
+        begin
+          Topic.send(:set_transaction_types, options)
+          Reply.send(:set_transaction_types, options)
+          yield
+        ensure
+          Topic.send(:set_transaction_types, old_types_topic)
+          Reply.send(:set_transaction_types, old_types_reply)
+        end
+      end
   end
 end

@@ -2,10 +2,6 @@ require File.dirname(__FILE__) + '/../abstract_unit'
 
 class CookieTest < Test::Unit::TestCase
   class TestController < ActionController::Base
-    def authenticate_with_deprecated_writer
-      cookie "name" => "user_name", "value" => "david"
-    end
-
     def authenticate
       cookies["user_name"] = "david"
     end
@@ -31,6 +27,11 @@ class CookieTest < Test::Unit::TestCase
       cookies.delete("user_name")
     end
 
+    def delete_cookie_with_path
+      cookies.delete("user_name", :path => '/beaten')
+      render :text => "hello world"
+    end
+
     def rescue_action(e) 
       raise unless ActionController::MissingTemplate # No templates here, and we don't care about the output 
     end
@@ -42,11 +43,6 @@ class CookieTest < Test::Unit::TestCase
 
     @controller = TestController.new
     @request.host = "www.nextangle.com"
-  end
-
-  def test_setting_cookie_with_deprecated_writer
-    get :authenticate_with_deprecated_writer
-    assert_equal [ CGI::Cookie::new("name" => "user_name", "value" => "david") ], @response.headers["cookie"]
   end
 
   def test_setting_cookie
@@ -84,5 +80,11 @@ class CookieTest < Test::Unit::TestCase
     jar = ActionController::CookieJar.new(@controller)
     assert_equal "david", jar["user_name"]
     assert_equal nil, jar["something_else"]
+  end
+
+  def test_delete_cookie_with_path
+    get :delete_cookie_with_path
+    assert_equal "/beaten", @response.headers["cookie"].first.path
+    assert_not_equal "/", @response.headers["cookie"].first.path
   end
 end

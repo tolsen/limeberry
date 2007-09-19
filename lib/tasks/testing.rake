@@ -25,4 +25,5 @@
 namespace :test do
   task :units => "db:test:populate"
   task :functionals => "db:test:populate"
+  task :integration => "db:test:populate"
 end

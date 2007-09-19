@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 require 'test/test_helper'
+require 'test/unit/dav_unit_test'
 
 class LivePropInfoTest < Test::Unit::TestCase
 

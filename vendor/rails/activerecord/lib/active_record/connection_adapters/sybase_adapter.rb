@@ -176,7 +176,7 @@ module ActiveRecord
         30
       end
 
-      def insert(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
+      def insert_sql(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
         begin
           table_name = get_table_name(sql)
           col = get_identity_column(table_name)
@@ -194,9 +194,7 @@ module ActiveRecord
           end
 
           log(sql, name) do
-            execute(sql, name)
-            ident = select_one("SELECT @@IDENTITY AS last_id")["last_id"]
-            id_value || ident
+            super || select_value("SELECT @@IDENTITY AS last_id")
           end
         ensure
           if ii_enabled
@@ -219,7 +217,7 @@ module ActiveRecord
       def rollback_db_transaction() raw_execute "ROLLBACK TRAN" end
 
       def current_database
-        select_one("select DB_NAME() as name")["name"]
+        select_value("select DB_NAME() as name")
       end
 
       def tables(name = nil)
@@ -242,8 +240,8 @@ module ActiveRecord
 SELECT col.name AS name, type.name AS type, col.prec, col.scale,
   col.length, col.status, obj.sysstat2, def.text
  FROM sysobjects obj, syscolumns col, systypes type, syscomments def
- WHERE obj.id = col.id AND col.usertype = type.usertype AND col.cdefault *= def.id
-  AND obj.type = 'U' AND obj.name = '#{table_name}' ORDER BY col.colid
+ WHERE obj.id = col.id AND col.usertype = type.usertype AND type.name != 'timestamp' 
+  AND col.cdefault *= def.id AND obj.type = 'U' AND obj.name = '#{table_name}' ORDER BY col.colid
 SQLTEXT
         @logger.debug "Get Column Info for table '#{table_name}'" if @logger
         @connection.set_rowcount(0)
@@ -292,8 +290,12 @@ SQLTEXT
           when TrueClass             then '1'
           when FalseClass            then '0'
           when Float, Fixnum, Bignum then force_numeric?(column) ? value.to_s : "'#{value.to_s}'"
-          when Time, DateTime        then "'#{value.strftime("%Y-%m-%d %H:%M:%S")}'"
-          else                       super
+          else
+            if value.acts_like?(:time)
+              "'#{value.strftime("%Y-%m-%d %H:%M:%S")}'"
+            else
+              super
+            end
         end
       end
 

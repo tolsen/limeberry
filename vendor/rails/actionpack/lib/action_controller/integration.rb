@@ -51,7 +51,7 @@ module ActionController
       # A reference to the response instance used by the last request.
       attr_reader :response
 
-      # Create an initialize a new Session instance.
+      # Create and initialize a new +Session+ instance.
       def initialize
         reset!
       end
@@ -67,15 +67,19 @@ module ActionController
         @https = false
         @cookies = {}
         @controller = @request = @response = nil
-      
+
         self.host        = "www.example.com"
         self.remote_addr = "127.0.0.1"
         self.accept      = "text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5"
 
-        unless @named_routes_configured
+        unless defined? @named_routes_configured
           # install the named routes in this session instance.
+          # But we have to disable the optimisation code so that we can
+          # generate routes without @request being initialized
+          Routing.optimise_named_routes=false
+          Routing::Routes.reload!
           klass = class<<self; self; end
-          Routing::Routes.named_routes.install(klass)
+          Routing::Routes.install_helpers(klass)
 
           # the helpers are made protected by default--we make them public for
           # easier access during testing and troubleshooting.
@@ -89,7 +93,7 @@ module ActionController
       #   session.https!
       #   session.https!(false)
       def https!(flag=true)
-        @https = flag        
+        @https = flag
       end
 
       # Return +true+ if the session is mimicing a secure HTTPS request.
@@ -143,49 +147,50 @@ module ActionController
       # Performs a GET request with the given parameters. The parameters may
       # be +nil+, a Hash, or a string that is appropriately encoded
       # (application/x-www-form-urlencoded or multipart/form-data).  The headers
-      # should be a hash.  The keys will automatically be upcased, with the 
+      # should be a hash.  The keys will automatically be upcased, with the
       # prefix 'HTTP_' added if needed.
       #
-      # You can also perform POST, PUT, DELETE, and HEAD requests with #post, 
+      # You can also perform POST, PUT, DELETE, and HEAD requests with #post,
       # #put, #delete, and #head.
-      def get(path, parameters=nil, headers=nil)
+      def get(path, parameters = nil, headers = nil)
         process :get, path, parameters, headers
       end
 
       # Performs a POST request with the given parameters. See get() for more details.
-      def post(path, parameters=nil, headers=nil)
+      def post(path, parameters = nil, headers = nil)
         process :post, path, parameters, headers
       end
 
       # Performs a PUT request with the given parameters. See get() for more details.
-      def put(path, parameters=nil, headers=nil)
+      def put(path, parameters = nil, headers = nil)
         process :put, path, parameters, headers
       end
-      
+
       # Performs a DELETE request with the given parameters. See get() for more details.
-      def delete(path, parameters=nil, headers=nil)
+      def delete(path, parameters = nil, headers = nil)
         process :delete, path, parameters, headers
       end
-      
+
       # Performs a HEAD request with the given parameters. See get() for more details.
-      def head(path, parameters=nil, headers=nil)
+      def head(path, parameters = nil, headers = nil)
         process :head, path, parameters, headers
       end
 
-      # Performs an XMLHttpRequest request with the given parameters, mimicing
-      # the request environment created by the Prototype library. The parameters
-      # may be +nil+, a Hash, or a string that is appropriately encoded
-      # (application/x-www-form-urlencoded or multipart/form-data).  The headers
-      # should be a hash.  The keys will automatically be upcased, with the 
-      # prefix 'HTTP_' added if needed.
-      def xml_http_request(path, parameters=nil, headers=nil)
-        headers = (headers || {}).merge(
-          "X-Requested-With" => "XMLHttpRequest",
-          "Accept"           => "text/javascript, text/html, application/xml, text/xml, */*"
-        )
+      # Performs an XMLHttpRequest request with the given parameters, mirroring
+      # a request from the Prototype library.
+      #
+      # The request_method is :get, :post, :put, :delete or :head; the
+      # parameters are +nil+, a hash, or a url-encoded or multipart string;
+      # the headers are a hash.  Keys are automatically upcased and prefixed
+      # with 'HTTP_' if not already.
+      def xml_http_request(request_method, path, parameters = nil, headers = nil)
+        headers ||= {}
+        headers['X-Requested-With'] = 'XMLHttpRequest'
+        headers['Accept'] = 'text/javascript, text/html, application/xml, text/xml, */*'
 
-        post(path, parameters, headers)
+        process(request_method, path, parameters, headers)
       end
+      alias xhr :xml_http_request
 
       # Returns the URL for the given options, according to the rules specified
       # in the application's routes.
@@ -195,14 +200,13 @@ module ActionController
 
       private
         class MockCGI < CGI #:nodoc:
-          attr_accessor :stdinput, :stdoutput, :env_table
+          attr_accessor :stdoutput, :env_table
 
-          def initialize(env, input=nil)
+          def initialize(env, input = nil)
             self.env_table = env
-            self.stdinput = StringIO.new(input || "")
             self.stdoutput = StringIO.new
 
-            super()
+            super('query', StringIO.new(input || ''))
           end
         end
 
@@ -216,7 +220,7 @@ module ActionController
         end
 
         # Performs the actual request.
-        def process(method, path, parameters=nil, headers=nil)
+        def process(method, path, parameters = nil, headers = nil)
           data = requestify(parameters)
           path = interpret_uri(path) if path =~ %r{://}
           path = "/#{path}" unless path[0] == ?/
@@ -292,7 +296,7 @@ module ActionController
           @status = @status.to_i
         end
 
-        # Encode the cookies hash in a format suitable for passing to a 
+        # Encode the cookies hash in a format suitable for passing to a
         # request.
         def encode_cookies
           cookies.inject("") do |string, (name, value)|
@@ -307,7 +311,7 @@ module ActionController
                             "REQUEST_URI"    => "/",
                             "HTTP_HOST"      => host,
                             "SERVER_PORT"    => https? ? "443" : "80",
-                            "HTTPS"          => https? ? "on" : "off")                          
+                            "HTTPS"          => https? ? "on" : "off")
           ActionController::UrlRewriter.new(ActionController::CgiRequest.new(cgi), {})
         end
 
@@ -329,7 +333,6 @@ module ActionController
             "#{CGI.escape(prefix)}=#{CGI.escape(parameters.to_s)}"
           end
         end
-
     end
 
     # A module used to extend ActionController::Base, so that integration tests
@@ -450,7 +453,7 @@ module ActionController
     # without any test methods.
     def run(*args) #:nodoc:
       return if @method_name == "default_test"
-      super   
+      super
     end
 
     # Because of how use_instantiated_fixtures and use_transactional_fixtures
@@ -490,7 +493,7 @@ module ActionController
       @integration_session = open_session
     end
 
-    %w(get post cookies assigns xml_http_request).each do |method|
+    %w(get post put head delete cookies assigns xml_http_request).each do |method|
       define_method(method) do |*args|
         reset! unless @integration_session
         # reset the html_document variable, but only for new get/post calls

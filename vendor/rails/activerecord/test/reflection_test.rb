@@ -60,6 +60,13 @@ class ReflectionTest < Test::Unit::TestCase
     assert_equal :integer, @first.column_for_attribute("id").type
   end
 
+  def test_reflection_klass_for_nested_class_name
+    reflection = ActiveRecord::Reflection::MacroReflection.new(nil, nil, { :class_name => 'MyApplication::Business::Company' }, nil)
+    assert_nothing_raised do
+      assert_equal MyApplication::Business::Company, reflection.klass
+    end
+  end
+
   def test_aggregation_reflection
     reflection_for_address = ActiveRecord::Reflection::AggregateReflection.new(
       :composed_of, :address, { :mapping => [ %w(address_street street), %w(address_city city), %w(address_country country) ] }, Customer
@@ -104,6 +111,15 @@ class ReflectionTest < Test::Unit::TestCase
     assert_equal 'accounts', Firm.reflect_on_association(:account).table_name
   end
 
+  def test_belongs_to_inferred_foreign_key_from_assoc_name
+    Company.belongs_to :foo
+    assert_equal "foo_id", Company.reflect_on_association(:foo).primary_key_name
+    Company.belongs_to :bar, :class_name => "Xyzzy"
+    assert_equal "bar_id", Company.reflect_on_association(:bar).primary_key_name
+    Company.belongs_to :baz, :class_name => "Xyzzy", :foreign_key => "xyzzy_id"
+    assert_equal "xyzzy_id", Company.reflect_on_association(:baz).primary_key_name
+  end
+
   def test_association_reflection_in_modules
     assert_reflection MyApplication::Business::Firm,
       :clients_of_firm,
@@ -143,8 +159,8 @@ class ReflectionTest < Test::Unit::TestCase
   end
   
   def test_reflection_of_all_associations
-    assert_equal 17, Firm.reflect_on_all_associations.size
-    assert_equal 15, Firm.reflect_on_all_associations(:has_many).size
+    assert_equal 16, Firm.reflect_on_all_associations.size
+    assert_equal 14, Firm.reflect_on_all_associations(:has_many).size
     assert_equal 2, Firm.reflect_on_all_associations(:has_one).size
     assert_equal 0, Firm.reflect_on_all_associations(:belongs_to).size
   end

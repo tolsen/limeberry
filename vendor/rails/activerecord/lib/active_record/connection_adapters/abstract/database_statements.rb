@@ -10,21 +10,28 @@ module ActiveRecord
       # Returns a record hash with the column names as keys and column values
       # as values.
       def select_one(sql, name = nil)
-        result = select(sql, name)
+        result = select_all(sql, name)
         result.first if result
       end
 
       # Returns a single value from a record
       def select_value(sql, name = nil)
-        result = select_one(sql, name)
-        result.nil? ? nil : result.values.first
+        if result = select_one(sql, name)
+          result.values.first
+        end
       end
 
       # Returns an array of the values of the first column in a select:
       #   select_values("SELECT id FROM companies LIMIT 3") => [1,2,3]
       def select_values(sql, name = nil)
-        result = select_all(sql, name)
-        result.map{ |v| v.values.first }
+        result = select_rows(sql, name)
+        result.map { |v| v[0] }
+      end
+
+      # Returns an array of arrays containing the field values.
+      # Order is the same as that returned by #columns.
+      def select_rows(sql, name = nil)
+        raise NotImplementedError, "select_rows is an abstract method"
       end
 
       # Executes the SQL statement in the context of this connection.
@@ -34,26 +41,33 @@ module ActiveRecord
 
       # Returns the last auto-generated ID from the affected table.
       def insert(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
-        raise NotImplementedError, "insert is an abstract method"
+        insert_sql(sql, name, pk, id_value, sequence_name)
       end
 
       # Executes the update statement and returns the number of rows affected.
       def update(sql, name = nil)
-        execute(sql, name)
+        update_sql(sql, name)
       end
 
       # Executes the delete statement and returns the number of rows affected.
       def delete(sql, name = nil)
-        update(sql, name)
+        delete_sql(sql, name)
       end
 
       # Wrap a block in a transaction.  Returns result of block.
-      def transaction(start_db_transaction = true)
+      def transaction(start_db_transaction = true, savepoint_number = 1)
         transaction_open = false
+        savepoint_open = false
         begin
           if block_given?
             if start_db_transaction
-              begin_db_transaction 
+              if savepoint_number == 1
+                begin_db_transaction
+              else
+                if create_savepoint(savepoint_number)
+                  savepoint_open = true
+                end
+              end
               transaction_open = true
             end
             yield
@@ -61,12 +75,32 @@ module ActiveRecord
         rescue Exception => database_transaction_rollback
           if transaction_open
             transaction_open = false
-            rollback_db_transaction
+            unless savepoint_open
+              rollback_db_transaction
+            else
+              savepoint_open = false
+              rollback_to_savepoint(savepoint_number)
+            end
           end
-          raise
+          raise unless database_transaction_rollback.is_a? ActiveRecord::Rollback
         end
       ensure
-        commit_db_transaction if transaction_open
+        if transaction_open
+          begin
+            unless savepoint_open
+              commit_db_transaction
+            else
+              release_savepoint(savepoint_number)
+            end
+          rescue Exception => database_transaction_rollback
+            unless savepoint_open
+              rollback_db_transaction
+            else
+              rollback_to_savepoint(savepoint_number)
+            end
+            raise
+          end
+        end
       end
 
       # Begins the transaction (and turns off auto-committing).
@@ -78,6 +112,18 @@ module ActiveRecord
       # Rolls back the transaction (and turns on auto-committing). Must be
       # done if the transaction block raises an exception or returns false.
       def rollback_db_transaction() end
+
+      # abstract create_savepoint method that does nothing
+      def create_savepoint(sp_number)
+      end
+
+      # abstract rollback_to_savepoint method that does nothing
+      def rollback_to_savepoint(sp_number)
+      end
+
+      # abstract release_savepoint method that does nothing
+      def release_savepoint(sp_number)
+      end
 
       # Alias for #add_limit_offset!.
       def add_limit!(sql, options)
@@ -105,8 +151,8 @@ module ActiveRecord
       #   add_lock! 'SELECT * FROM suppliers', :lock => ' FOR UPDATE'
       def add_lock!(sql, options)
         case lock = options[:lock]
-          when true:   sql << ' FOR UPDATE'
-          when String: sql << " #{lock}"
+          when true;   sql << ' FOR UPDATE'
+          when String; sql << " #{lock}"
         end
       end
 
@@ -119,11 +165,33 @@ module ActiveRecord
         # Do nothing by default.  Implement for PostgreSQL, Oracle, ...
       end
 
+      # Inserts the given fixture into the table. Overriden in adapters that require
+      # something beyond a simple insert (eg. Oracle).
+      def insert_fixture(fixture, table_name)
+        insert "INSERT INTO #{table_name} (#{fixture.key_list}) VALUES (#{fixture.value_list})", 'Fixture Insert'
+      end
+
       protected
         # Returns an array of record hashes with the column names as keys and
         # column values as values.
         def select(sql, name = nil)
           raise NotImplementedError, "select is an abstract method"
+        end
+
+        # Returns the last auto-generated ID from the affected table.
+        def insert_sql(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
+          execute(sql, name)
+          id_value
+        end
+
+        # Executes the update statement and returns the number of rows affected.
+        def update_sql(sql, name = nil)
+          execute(sql, name)
+        end
+
+        # Executes the delete statement and returns the number of rows affected.
+        def delete_sql(sql, name = nil)
+          update_sql(sql, name)
         end
     end
   end

@@ -44,17 +44,9 @@ begin
       # After setting large objects to empty, select the OCI8::LOB
       # and write back the data.
       after_save :write_lobs
-      def write_lobs() #:nodoc:
+      def write_lobs #:nodoc:
         if connection.is_a?(ConnectionAdapters::OracleAdapter)
-          self.class.columns.select { |c| c.sql_type =~ /LOB$/i }.each { |c|
-            value = self[c.name]
-            value = value.to_yaml if unserializable_attribute?(c.name, c)
-            next if value.nil?  || (value == '')
-            lob = connection.select_one(
-              "SELECT #{c.name} FROM #{self.class.table_name} WHERE #{self.class.primary_key} = #{quote_value(id)}",
-              'Writable Large Object')[c.name]
-            lob.write value
-          }
+          connection.write_lobs(self.class.table_name, self.class, attributes)
         end
       end
 
@@ -162,7 +154,7 @@ begin
         # camelCase column names need to be quoted; not that anyone using Oracle
         # would really do this, but handling this case means we pass the test...
         def quote_column_name(name) #:nodoc:
-          name =~ /[A-Z]/ ? "\"#{name}\"" : name
+          name.to_s =~ /[A-Z]/ ? "\"#{name}\"" : name
         end
 
         def quote_string(s) #:nodoc:
@@ -170,7 +162,7 @@ begin
         end
 
         def quote(value, column = nil) #:nodoc:
-          if column && [:text, :binary].include?(column.type)
+          if value && column && [:text, :binary].include?(column.type)
             %Q{empty_#{ column.sql_type.downcase rescue 'blob' }()}
           else
             super
@@ -231,11 +223,6 @@ begin
           id
         end
 
-        def insert(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil) #:nodoc:
-          execute(sql, name)
-          id_value
-        end
-
         def begin_db_transaction #:nodoc:
           @connection.autocommit = false
         end
@@ -270,6 +257,30 @@ begin
 
         def default_sequence_name(table, column) #:nodoc:
           "#{table}_seq"
+        end
+
+
+        # Inserts the given fixture into the table. Overriden to properly handle lobs.
+        def insert_fixture(fixture, table_name)
+          super
+
+          klass = fixture.class_name.constantize rescue nil
+          if klass.respond_to?(:ancestors) && klass.ancestors.include?(ActiveRecord::Base)
+            write_lobs(table_name, klass, fixture)
+          end
+        end
+
+        # Writes LOB values from attributes, as indicated by the LOB columns of klass.
+        def write_lobs(table_name, klass, attributes)
+          id = quote(attributes[klass.primary_key])
+          klass.columns.select { |col| col.sql_type =~ /LOB$/i }.each do |col|
+            value = attributes[col.name]
+            value = value.to_yaml if col.text? && klass.serialized_attributes[col.name]
+            next if value.nil?  || (value == '')
+            lob = select_one("SELECT #{col.name} FROM #{table_name} WHERE #{klass.primary_key} = #{id}",
+                             'Writable Large Object')[col.name]
+            lob.write value
+          end
         end
 
 
@@ -320,6 +331,7 @@ begin
                    decode(data_type, 'NUMBER', data_precision,
                                      'FLOAT', data_precision,
                                      'VARCHAR2', data_length,
+                                     'CHAR', data_length,
                                       null) as limit,
                    decode(data_type, 'NUMBER', data_scale, null) as scale
               from all_tab_columns
@@ -338,7 +350,7 @@ begin
             if row['data_default']
               row['data_default'].sub!(/^(.*?)\s*$/, '\1')
               row['data_default'].sub!(/^'(.*)'$/, '\1')
-              row['data_default'] = nil if row['data_default'] =~ /^null$/i
+              row['data_default'] = nil if row['data_default'] =~ /^(null|empty_[bc]lob\(\))$/i
             end
 
             OracleColumn.new(oracle_downcase(row['name']),
@@ -370,21 +382,21 @@ begin
         end
 
         def change_column_default(table_name, column_name, default) #:nodoc:
-          execute "ALTER TABLE #{table_name} MODIFY #{column_name} DEFAULT #{quote(default)}"
+          execute "ALTER TABLE #{table_name} MODIFY #{quote_column_name(column_name)} DEFAULT #{quote(default)}"
         end
 
         def change_column(table_name, column_name, type, options = {}) #:nodoc:
-          change_column_sql = "ALTER TABLE #{table_name} MODIFY #{column_name} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
+          change_column_sql = "ALTER TABLE #{table_name} MODIFY #{quote_column_name(column_name)} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
           add_column_options!(change_column_sql, options)
           execute(change_column_sql)
         end
 
         def rename_column(table_name, column_name, new_column_name) #:nodoc:
-          execute "ALTER TABLE #{table_name} RENAME COLUMN #{column_name} to #{new_column_name}"
+          execute "ALTER TABLE #{table_name} RENAME COLUMN #{quote_column_name(column_name)} to #{quote_column_name(new_column_name)}"
         end
 
         def remove_column(table_name, column_name) #:nodoc:
-          execute "ALTER TABLE #{table_name} DROP COLUMN #{column_name}"
+          execute "ALTER TABLE #{table_name} DROP COLUMN #{quote_column_name(column_name)}"
         end
 
         # Find a table's primary key and sequence. 
@@ -447,6 +459,14 @@ begin
           end
         end
 
+        def add_column_options!(sql, options) #:nodoc:
+          # handle case of defaults for CLOB columns, which would otherwise get "quoted" incorrectly
+          if options_include_default?(options) && (column = options[:column]) && column.type == :text
+            sql << " DEFAULT #{quote(options.delete(:default))}" 
+          end
+          super
+        end
+
         # SELECT DISTINCT clause for a given set of columns and a given ORDER BY clause.
         #
         # Oracle requires the ORDER BY columns to be in the SELECT list for DISTINCT
@@ -480,7 +500,7 @@ begin
           order.map! {|s| $1 if s =~ / (.*)/}
           order = order.zip((0...order.size).to_a).map { |s,i| "alias_#{i}__ #{s}" }.join(', ')
 
-          sql << "ORDER BY #{order}"
+          sql << " ORDER BY #{order}"
         end
 
         private
@@ -499,8 +519,20 @@ begin
                 when OCI8::LOB
                   name == 'Writable Large Object' ? row[i]: row[i].read
                 when OraDate
-                  (row[i].hour == 0 and row[i].minute == 0 and row[i].second == 0) ?
-                  row[i].to_date : row[i].to_time
+                  d = row[i]
+                  if emulate_dates && (d.hour == 0 && d.minute == 0 && d.second == 0)
+                    d.to_date
+                  else
+                    # see string_to_time; Time overflowing to DateTime, respecting the default timezone
+                    time_array = [d.year, d.month, d.day, d.hour, d.minute, d.second]
+                    begin
+                      Time.send(Base.default_timezone, *time_array)
+                    rescue
+                      zone_offset = if Base.default_timezone == :local then DateTime.now.offset else 0 end
+                      # Append zero calendar reform start to account for dates skipped by calendar reform
+                      DateTime.new(*time_array[0..5] << zone_offset << 0) rescue nil
+                    end
+                  end
                 else row[i]
                 end unless col == 'raw_rnum_'
             end
@@ -536,8 +568,8 @@ begin
       alias :define_a_column_pre_ar :define_a_column
       def define_a_column(i)
         case do_ocicall(@ctx) { @parms[i - 1].attrGet(OCI_ATTR_DATA_TYPE) }
-        when 8    : @stmt.defineByPos(i, String, 65535) # Read LONG values
-        when 187  : @stmt.defineByPos(i, OraDate) # Read TIMESTAMP values
+        when 8;   @stmt.defineByPos(i, String, 65535) # Read LONG values
+        when 187; @stmt.defineByPos(i, OraDate) # Read TIMESTAMP values
         when 108
           if @parms[i - 1].attrGet(OCI_ATTR_TYPE_NAME) == 'XMLTYPE'
             @stmt.defineByPos(i, String, 65535)

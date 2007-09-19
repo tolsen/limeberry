@@ -215,3 +215,16 @@ Privilege.priv_all.grant dir, stimpy
 put_new dir, 'inherits', 'inherits', stimpy
 disowned = Resource.create :displayname => 'disowned', :creator => stimpy
 dir.bind disowned, 'disowned', stimpy  # acl parent *not* set
+
+# for http_lock integration tests
+httplockroot = Collection.mkcol_p '/httplock', limeberry
+Privilege.priv_all.grant httplockroot, ren
+put_new httplockroot, 'a', 'a', ren
+
+owner_info = "<href>http://dav.limedav.com/principals/ren</href>"
+httplock_a = Lock.create!( :owner => ren,
+                           :scope => 'X',
+                           :depth => '0',
+                           :expires_at => Time.gm(2030),
+                           :owner_info => owner_info,
+                           :lock_root => '/httplock/a' )

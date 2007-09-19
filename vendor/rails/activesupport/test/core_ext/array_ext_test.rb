@@ -121,12 +121,12 @@ class ArrayToXmlTests < Test::Unit::TestCase
       { :name => "Jason", :age => 31, :age_in_millis => BigDecimal.new('1.0') }
     ].to_xml(:skip_instruct => true, :indent => 0)
 
-    assert_equal "<records><record>", xml.first(17), xml
+    assert_equal '<records type="array"><record>', xml.first(30)
     assert xml.include?(%(<age type="integer">26</age>)), xml
     assert xml.include?(%(<age-in-millis type="integer">820497600000</age-in-millis>)), xml
     assert xml.include?(%(<name>David</name>)), xml
     assert xml.include?(%(<age type="integer">31</age>)), xml
-    assert xml.include?(%(<age-in-millis type="numeric">1.0</age-in-millis>)), xml
+    assert xml.include?(%(<age-in-millis type="decimal">1.0</age-in-millis>)), xml
     assert xml.include?(%(<name>Jason</name>)), xml
   end
 
@@ -135,7 +135,7 @@ class ArrayToXmlTests < Test::Unit::TestCase
       { :name => "David", :age => 26, :age_in_millis => 820497600000 }, { :name => "Jason", :age => 31 }
     ].to_xml(:skip_instruct => true, :indent => 0, :root => "people")
 
-    assert_equal "<people><person>", xml.first(16)
+    assert_equal '<people type="array"><person>', xml.first(29)
   end
 
   def test_to_xml_with_options
@@ -176,7 +176,43 @@ class ArrayToXmlTests < Test::Unit::TestCase
       { :name => "Jason", :age => 31, :age_in_millis => BigDecimal.new('1.0') }
     ].to_xml(:skip_instruct => false, :indent => 0)
 
-    assert(/^<\?xml [^>]*/.match(xml))
-    assert xml.rindex(/<\?xml /) == 0
+    assert_match(/^<\?xml [^>]*/, xml)
+    assert_equal 0, xml.rindex(/<\?xml /)
   end
+
+  def test_to_xml_with_block
+    xml = [
+      { :name => "David", :age => 26, :age_in_millis => 820497600000 },
+      { :name => "Jason", :age => 31, :age_in_millis => BigDecimal.new('1.0') }
+    ].to_xml(:skip_instruct => true, :indent => 0) do |builder|
+      builder.count 2
+    end
+
+    assert xml.include?(%(<count>2</count>)), xml
+  end
+end
+
+class ArrayExtractOptionsTests < Test::Unit::TestCase
+  def test_extract_options
+    assert_equal({}, [].extract_options!)
+    assert_equal({}, [1].extract_options!)
+    assert_equal({:a=>:b}, [{:a=>:b}].extract_options!)
+    assert_equal({:a=>:b}, [1, {:a=>:b}].extract_options!)
+  end
+end
+
+uses_mocha "ArrayExtRandomTests" do
+
+class ArrayExtRandomTests < Test::Unit::TestCase
+  def test_random_element_from_array
+    assert_nil [].rand
+
+    Kernel.expects(:rand).with(1).returns(0)
+    assert_equal 'x', ['x'].rand
+
+    Kernel.expects(:rand).with(3).returns(1)
+    assert_equal 2, [1, 2, 3].rand
+  end
+end
+
 end
