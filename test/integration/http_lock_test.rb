@@ -26,11 +26,13 @@
 require "test/test_helper"
 require "test/integration/dav_integration_test.rb"
 
-class HttpLockTest < DavIntegrationTestCase
+class HttpLockTest < DavIntegrationTestCase  
 
   def setup
     super
     @ren_auth = auth_header 'ren', 'ren'
+    @a = Bind.locate '/httplock/a'
+    @a_lock = @a.locks[0]
   end
   
   # test that my modified integration test case works
@@ -47,8 +49,7 @@ class HttpLockTest < DavIntegrationTestCase
     put '/httplock/a', 'hello', @ren_auth
     assert_response 423
 
-    a_lock = Bind.locate('/httplock/a').locks[0]
-    put '/httplock/a', 'hello', @ren_auth.merge(if_header(a_lock))
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header(@a_lock))
     assert_response 204
 
     get '/httplock/a', nil, @ren_auth
@@ -56,8 +57,60 @@ class HttpLockTest < DavIntegrationTestCase
     assert_equal 'hello', response.binary_content
   end
 
-  def if_header *args
-    { 'HTTP_IF' => "(<#{args[0].locktoken}>)" }
+  def test_put_lock_expired
+    if_hdr = if_header @a_lock
+    unlock '/httplock/a', nil, @ren_auth.merge(locktoken_header(@a_lock))
+    assert_response 204
+
+    put '/httplock/a', 'hello', @ren_auth.merge(if_hdr)
+    assert_response 412
+
+    put '/httplock/a', 'hello', @ren_auth
+    assert_response 204
+
+    get '/httplock/a', nil, @ren_auth
+    assert_response 200
+    assert_equal 'hello', response.binary_content
   end
+
+  def failing_test_delete_if_etag_and_lock
+    old_etag_if_hdr = if_header @a, @a_lock
+
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header(@a_lock))
+    assert_response 204
+
+    puts old_etag_if_hdr['HTTP_IF']
+    delete '/httplock/a', 'hello', @ren_auth.merge(old_etag_if_hdr)
+    assert_response 412
+
+    head '/httplock/a', nil, @ren_auth
+    assert_response 200
+
+    delete '/httplock/a', nil, @ren_auth.merge(if_header(@a, @a_lock))
+    assert_response 204
+
+    head '/httplock/a', nil, @ren_auth
+    assert_response 404
+  end
+  
+
+  def if_header *args
+    { 'HTTP_IF' => "(" + args.map{ |a| a.delimited_token }.join(' ') + ")" }
+  end
+
+  def locktoken_header lock
+    { 'HTTP_LOCK_TOKEN' => lock.delimited_token }
+  end
+
+    
+  Resource.class_eval do
+    def delimited_token() "[#{body.sha1}]"; end
+  end
+
+  Lock.class_eval do
+    def delimited_token() "<#{locktoken}>"; end
+  end
+      
+  
     
 end
