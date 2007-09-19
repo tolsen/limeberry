@@ -85,6 +85,5 @@ class DavIntegrationTestCase < ActionController::IntegrationTest
     yield session if block_given?
     session
   end
-    
-  
+
 end

@@ -42,6 +42,22 @@ class HttpLockTest < DavIntegrationTestCase
     assert_response 200
     assert_equal 'hello', response.binary_content
   end
-    
+
+  def test_put_lock
+    put '/httplock/a', 'hello', @ren_auth
+    assert_response 423
+
+    a_lock = Bind.locate('/httplock/a').locks[0]
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header(a_lock))
+    assert_response 204
+
+    get '/httplock/a', nil, @ren_auth
+    assert_response 200
+    assert_equal 'hello', response.binary_content
+  end
+
+  def if_header *args
+    { 'HTTP_IF' => "(<#{args[0].locktoken}>)" }
+  end
     
 end
