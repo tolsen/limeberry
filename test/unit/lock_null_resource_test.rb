@@ -22,9 +22,10 @@
 
 require 'stringio'
 
-require 'lib/errors'
 require 'test/test_helper'
 require 'test/unit/dav_unit_test'
+
+require 'errors'
 
 class LockNullResourceTest < DavUnitTestCase
 

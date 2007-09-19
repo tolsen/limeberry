@@ -20,7 +20,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require "rexml_fixes"
+require 'rexml_fixes'
 require 'status'
 require 'constants'
 

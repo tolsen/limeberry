@@ -457,7 +457,7 @@ class Resource < ActiveRecord::Base
 
   def getetag(xml)
     raise NotFoundError if body.nil?
-    xml.D(:getetag, body.sha1)
+    xml.D(:getetag, "\"#{body.sha1}\"")
   end
 
   # getlastmodified time is to be determined based on

@@ -23,11 +23,11 @@
 require 'rexml/document'
 require 'stringio'
 
-require 'lib/errors'
-require 'lib/if_header'
-
 require 'test/test_helper'
 require 'test/unit/dav_unit_test'
+
+require 'errors'
+require 'if_header'
 
 require 'test/xml'
 
@@ -249,7 +249,7 @@ class ResourceTest < DavUnitTestCase
     assert_raise(NotFoundError) { @collection.getetag(@xml) }
 
     assert_liveprop_direct_method_equal(:getetag, "getetag",
-                                        @resource.body.sha1)
+                                        "\"#{@resource.body.sha1}\"")
   end
 
 

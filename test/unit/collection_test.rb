@@ -24,7 +24,7 @@ require 'test/test_helper'
 require 'test/unit/dav_unit_test'
 
 require 'stringio'
-require 'lib/errors'
+require 'errors'
 
 class CollectionTest < DavUnitTestCase
 

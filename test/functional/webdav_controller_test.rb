@@ -790,7 +790,7 @@ EOS
 <D:propertyupdate xmlns:D="DAV:">
   <D:set>
     <D:prop>
-      <D:getetag>etagofmychoosing</D:getetag>
+      <D:getetag>"etagofmychoosing"</D:getetag>
     </D:prop>
   </D:set>
 </D:propertyupdate>
@@ -888,7 +888,7 @@ EOS
       <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Title for Dublin Core</dc:title>
       <N:randomname1 xmlns:N="randomns1">newvalue</N:randomname1>
       <D:displayname>my new displayname</D:displayname>
-      <D:getetag>iwishicouldchangemyetag</D:getetag>
+      <D:getetag>"iwishicouldchangemyetag"</D:getetag>
     </D:prop>
   </D:set>
 </D:propertyupdate>
@@ -1496,7 +1496,7 @@ EOS
       <D:getcontentlength>#{resource.body.size}</D:getcontentlength>
       <D:getcontenttype>#{resource.body.mimetype}</D:getcontenttype>
       <D:getlastmodified>#{resource.body.created_at.httpdate}</D:getlastmodified>
-      <D:getetag>#{resource.body.sha1}</D:getetag>
+      <D:getetag>"#{resource.body.sha1}"</D:getetag>
 #{extra_props}
 EOS
     expected_allprop_common resource, extra_props2
