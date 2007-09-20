@@ -106,7 +106,9 @@ class HttpController < ApplicationController
   private
 
   def set_validators
-    headers['ETag'] = "\"#{@resource.body.sha1}\"" unless @resource.body.nil?
+    headers['ETag'] = "\"#{@resource.etag}\""
+  rescue NotFoundError
+  ensure
     headers['Last-Modified'] = @resource.lastmodified.httpdate
   end
 

@@ -28,14 +28,14 @@ class IfHeaderParserTest < DavUnitTestCase
   def test_cond_new
     cond = IfHeaderParser::Cond.new(:state_token, '<locktoken:a-write-lock-token>')
 
-    assert_equal(:state_token, cond.type)
+    assert cond.lock_token?
     assert_equal('<locktoken:a-write-lock-token>', cond.value)
     assert(!cond.negated)
   end
 
   def test_cond_new_negated
     cond = IfHeaderParser::Cond.new(:entity_tag, '["I am an ETag"]', true)
-    assert_equal(:entity_tag, cond.type)
+    assert !cond.lock_token?
     assert_equal('["I am an ETag"]', cond.value)
     assert(cond.negated)
   end

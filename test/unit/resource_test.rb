@@ -145,6 +145,15 @@ class ResourceTest < DavUnitTestCase
     assert(r1.acl_node.children.include?(r2.acl_node))
   end
 
+  def test_etag
+    assert_equal @resource.body.sha1, @resource.etag
+  end
+
+  def test_etag_no_body
+    res_no_body = Resource.create!
+    assert_raise(NotFoundError) { res_no_body.etag }
+  end
+
   def test_locked_with
     lock = create_lock("/", @limeberry, 'X', '0')
     assert !(Bind.root_collection.locked_with?("randomtoken"))
@@ -249,7 +258,7 @@ class ResourceTest < DavUnitTestCase
     assert_raise(NotFoundError) { @collection.getetag(@xml) }
 
     assert_liveprop_direct_method_equal(:getetag, "getetag",
-                                        "\"#{@resource.body.sha1}\"")
+                                        "\"#{@resource.etag}\"")
   end
 
 

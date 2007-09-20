@@ -149,7 +149,7 @@ class ApplicationController < ActionController::Base
       @if_locktokens = if_parse_result.lock_tokens.map {|locktoken| Utility.locktoken_to_uuid(locktoken)}
 
 
-      raise PreconditionFailedError unless if_parse_result.evaluate(@resource, @principal)
+      raise PreconditionFailedError unless @resource && if_parse_result.evaluate(@resource, @principal)
       
     end
   end
@@ -214,7 +214,7 @@ class ApplicationController < ActionController::Base
       quoted_etag.split('"')[1]
     end
 
-    matching_etags.include?(resource.body.sha1)
+    matching_etags.include? resource.etag
   end
 
   def respond_unmodified

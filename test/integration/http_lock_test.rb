@@ -73,20 +73,19 @@ class HttpLockTest < DavIntegrationTestCase
     assert_equal 'hello', response.binary_content
   end
 
-  def failing_test_delete_if_etag_and_lock
+  def test_delete_if_etag_and_lock
     old_etag_if_hdr = if_header @a, @a_lock
 
     put '/httplock/a', 'hello', @ren_auth.merge(if_header(@a_lock))
     assert_response 204
 
-    puts old_etag_if_hdr['HTTP_IF']
     delete '/httplock/a', 'hello', @ren_auth.merge(old_etag_if_hdr)
     assert_response 412
 
     head '/httplock/a', nil, @ren_auth
     assert_response 200
 
-    delete '/httplock/a', nil, @ren_auth.merge(if_header(@a, @a_lock))
+    delete '/httplock/a', nil, @ren_auth.merge(if_header(@a.reload, @a_lock))
     assert_response 204
 
     head '/httplock/a', nil, @ren_auth
@@ -104,7 +103,7 @@ class HttpLockTest < DavIntegrationTestCase
 
     
   Resource.class_eval do
-    def delimited_token() "[#{body.sha1}]"; end
+    def delimited_token() "[\"#{etag}\"]"; end
   end
 
   Lock.class_eval do

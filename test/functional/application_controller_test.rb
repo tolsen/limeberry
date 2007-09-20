@@ -32,7 +32,7 @@ class ApplicationControllerTest < DavFunctionalTestCase
 
   def test_matches
     foo = util_put '/foo', 'arbit'
-    etag = foo.body.sha1
+    etag = foo.etag
 
     assert matches?(foo, "\"asdsad\", \"#{etag}\", \"qwe\"", @limeberry)
     assert !matches?(foo, "\"asdsad\", \"qwe\"", @limeberry)

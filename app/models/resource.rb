@@ -340,6 +340,11 @@ class Resource < ActiveRecord::Base
     end
   end
 
+  def etag
+    raise NotFoundError if body.nil?
+    body.sha1
+  end
+
   def self.num_props_sent_in_allprop
     self.liveprops.select { |k, v| v.allprop? }.size
   end
@@ -456,8 +461,7 @@ class Resource < ActiveRecord::Base
   end
 
   def getetag(xml)
-    raise NotFoundError if body.nil?
-    xml.D(:getetag, "\"#{body.sha1}\"")
+    xml.D(:getetag, "\"#{etag}\"")
   end
 
   # getlastmodified time is to be determined based on

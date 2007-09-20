@@ -784,7 +784,7 @@ EOS
   end
 
   def test_proppatch_set_protected_prop
-    orig_etag = @foo.body.sha1
+    orig_etag = @foo.etag
     @request.body = <<EOS
 <?xml version="1.0" encoding="utf-8" ?>
 <D:propertyupdate xmlns:D="DAV:">
@@ -812,7 +812,7 @@ EOS
     proppatch @foopath, 'limeberry'
     assert_multistatus expected
 
-    assert_equal orig_etag, @foo.reload.body.sha1
+    assert_equal orig_etag, @foo.reload.etag
   end
 
   def test_proppatch_remove_protected_prop
@@ -1496,7 +1496,7 @@ EOS
       <D:getcontentlength>#{resource.body.size}</D:getcontentlength>
       <D:getcontenttype>#{resource.body.mimetype}</D:getcontenttype>
       <D:getlastmodified>#{resource.body.created_at.httpdate}</D:getlastmodified>
-      <D:getetag>"#{resource.body.sha1}"</D:getetag>
+      <D:getetag>"#{resource.etag}"</D:getetag>
 #{extra_props}
 EOS
     expected_allprop_common resource, extra_props2

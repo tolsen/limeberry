@@ -137,25 +137,25 @@ module IfHeaderParser
 
   
   class Cond
-    attr_reader :type #:state_token or :entity_tag
     attr_reader :value
     attr_accessor :negated
 
     def initialize(type, value, negated = false)
-      @type = type
+      @type = type #:state_token or :entity_tag
       @value = value
       @negated = negated
     end
-    
+
+    def lock_token?() @type == :state_token; end
 
     def evaluate(resource)
-      result = case self.type
+      result = case @type
                when :state_token
                  uuid = Utility.locktoken_to_uuid(value)
                  resource.locked_with?(uuid)
                when :entity_tag
                  etag = value.sub(/^(W\/)?"(.*)"$/,'\2')
-                 etag == resource.uuid
+                 etag == resource.etag
                else
                  raise(InternalServerError,
                        "evaluating a Cond that is not a :state_token nor :entity_tag")
@@ -166,96 +166,57 @@ module IfHeaderParser
 
   end
   
-  class List
-    include Enumerable
-    
-    attr_reader :lock_tokens
-    
-    def initialize
-      @cond_array = Array.new
-      @lock_tokens = Array.new
-    end
+  class List < Array
     
     def <<(cond)
       raise BadRequestError if cond.value.nil?
-      @cond_array << cond
-      @lock_tokens << cond.value if cond.type == :state_token
+      super
     end
     
-    def each
-      @cond_array.each {|cond| yield(cond) }
-    end
-    
-    def empty?
-      @cond_array.empty?
+    def lock_tokens
+      find_all{ |c| c.lock_token? }.map{ |c| c.value }
     end
 
     def evaluate(resource)
-      inject(true) do |result, cond|
-        if resource.nil?
-          cond.not
-        else
-          cond.evaluate(resource)
-        end
-      end
+      all? { |cond| cond.evaluate resource }
     end
     
   end
 
   # untagged lists
-  class Lists
-    include Enumerable
-    
-    attr_reader :lock_tokens
-    
-    def initialize
-      @list_array = Array.new
-      @lock_tokens = Array.new
-    end
-    
+  class Lists < Array
+
     def <<(list)
       raise BadRequestError if list.empty?
-      @list_array << list
-      @lock_tokens.concat list.lock_tokens
-      @lock_tokens.uniq!
+      super
     end
     
-    def each
-      @list_array.each {|list| yield(list) }
-    end
-    
-    def empty?
-      @list_array.empty?
-    end
-
     def evaluate(resource, principal)
       Privilege.priv_read.assert_granted(resource, principal)
-      
-      resource.logger.debug(self.to_s)
+      any? { |l| l.evaluate resource }
+    end
 
-      inject(false) do |result, list|
-        break if result
-        list.evaluate(resource)
-      end
+    def lock_tokens
+      map{ |l| l.lock_tokens }.flatten.uniq
     end
     
   end
   
-  class TaggedList
-    include Enumerable
-    
-    attr_reader :tag, :lists
+  class TaggedList < Array
+
+    attr_reader :tag
     
     def initialize tag, lists
       raise BadRequestError if lists.empty?
       @lists = lists
+      super lists
       uri = URI.parse(tag)
       raise MethodNotAllowedError unless /^#{BASE_WEBDAV_PATH}/.match(uri.path)
       @tag = uri.path.sub(/#{BASE_WEBDAV_PATH}/,"")
     end
     
     def lock_tokens
-      return @lists.lock_tokens
+      @lists.lock_tokens
     end
 
     def each
@@ -271,34 +232,26 @@ module IfHeaderParser
   class TaggedLists
     include Enumerable
     
-    attr_reader :lock_tokens
-    
     def initialize
-      @tagged_lists = Array.new
-      @lock_tokens = Array.new
+      @tagged_lists = []
     end
-
-    
     
     def <<(tagged_list)
       @tagged_lists << tagged_list
-      @lock_tokens.concat tagged_list.lock_tokens
-      @lock_tokens.uniq!
     end
     
     def each
       @tagged_lists.each {|tagged_list| yield(tagged_list) }
     end
 
-
     # resource is ignored
     def evaluate(resource, principal)
-      inject(true) do |result, tagged_list|
-        break unless result
-        tagged_list.evaluate(principal)
-      end
+      any? { |tl| tl.evaluate principal }
     end
 
+    def lock_tokens
+      @tagged_lists.map{ |tl| tl.lock_tokens }.flatten.uniq
+    end
 
   end
   
