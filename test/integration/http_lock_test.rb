@@ -28,6 +28,8 @@ require 'rexml/document'
 require "test/test_helper"
 require "test/integration/dav_integration_test.rb"
 
+require 'test/xml'
+
 class HttpLockTest < DavIntegrationTestCase  
 
   def setup
@@ -177,8 +179,16 @@ class HttpLockTest < DavIntegrationTestCase
 
     delete '/httplock/hr/recruiting/resumes', nil, @ren_auth
     assert_response 207
-    # TODO.  verify xml response
-
+    assert_xml_matches response.body do |xml|
+      xml.xmlns! 'DAV:'
+      xml.multistatus do
+        xml.response do
+          xml.href freds_resume
+          xml.status "HTTP/1.1 423 Locked"
+        end
+      end
+    end
+    
     head freds_resume, nil, @ren_auth
     assert_response 200
 
