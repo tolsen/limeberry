@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 require 'test/test_helper'
+require 'test/functional/dav_functional_test'
 require 'webdav_controller'
 
 
