@@ -49,6 +49,10 @@ class ApplicationController < ActionController::Base
                 :evaluate_if_headers,
                 :evaluate_conditional_headers)
 
+  before_filter do |c|
+    c.request.cgi.stdinput.rewind if c.request.cgi.stdinput.respond_to? :rewind
+  end
+
   private
 
   def set_path
@@ -74,7 +78,7 @@ class ApplicationController < ActionController::Base
            else
              request.env["HTTP_DAV"].split(',').map{ |s| s.lowercase.intern }.to_set
            end
-    
+
     @depth = case request.env["HTTP_DEPTH"]
              when '0', 0 then 0.0
              when '1', 1 then 1.0

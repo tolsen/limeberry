@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 require 'test/test_helper'
+require 'test/functional/dav_functional_test'
 require 'lock_controller'
 
 # Re-raise errors caught by the controller.
@@ -599,38 +600,11 @@ EOS
     return false
   end
   
-
   def request_lock(path, timeout = nil, body = exclusive_lock_body, principal = 'limeberry')
     @request.env['HTTP_TIMEOUT'] = timeout unless timeout.nil?
     @request.body = body
     lock path, principal
   end
-
-  def exclusive_lock_body
-    return <<EOS
-<D:lockinfo xmlns:D='DAV:'> 
-  <D:lockscope><D:exclusive/></D:lockscope> 
-  <D:locktype><D:write/></D:locktype> 
-  <D:owner> 
-    <D:href>http://example.org/~ejw/contact.html</D:href> 
-  </D:owner> 
-</D:lockinfo>
-EOS
-  end
-
-  def shared_lock_body
-    return <<EOS
-<D:lockinfo xmlns:D='DAV:'> 
-  <D:lockscope><D:shared/></D:lockscope> 
-  <D:locktype><D:write/></D:locktype> 
-  <D:owner> 
-    <D:href>http://example.org/~ejw/contact.html</D:href> 
-  </D:owner> 
-</D:lockinfo>
-EOS
-  end
-
-
   
   def assert_proper_lock_response(path_or_resource, *expected_locks)
     assert_proper_lock_response_common 200, path_or_resource, *expected_locks

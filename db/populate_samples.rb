@@ -222,9 +222,14 @@ Privilege.priv_all.grant httplockroot, ren
 put_new httplockroot, 'a', 'a', ren
 
 owner_info = "<href>http://dav.limedav.com/principals/ren</href>"
-httplock_a = Lock.create!( :owner => ren,
-                           :scope => 'X',
-                           :depth => '0',
-                           :expires_at => Time.gm(2030),
-                           :owner_info => owner_info,
-                           :lock_root => '/httplock/a' )
+Lock.create!( :owner => ren,
+              :scope => 'X',
+              :depth => '0',
+              :expires_at => Time.gm(2030),
+              :owner_info => owner_info,
+              :lock_root => '/httplock/a' )
+
+put_new httplockroot, 'b', 'b', ren
+
+Collection.mkcol_p '/httplock/hr/recruiting/resumes', ren
+Collection.mkcol_p '/httplock/hr/archives', ren

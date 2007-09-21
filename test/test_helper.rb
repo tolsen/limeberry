@@ -171,6 +171,31 @@ module DavTest
     assert_response 200
     assert_equal expected, @response.binary_content
   end
+
+  def exclusive_lock_body
+    return <<EOS
+<D:lockinfo xmlns:D='DAV:'> 
+  <D:lockscope><D:exclusive/></D:lockscope> 
+  <D:locktype><D:write/></D:locktype> 
+  <D:owner> 
+    <D:href>http://example.org/~ejw/contact.html</D:href> 
+  </D:owner> 
+</D:lockinfo>
+EOS
+  end
+
+  def shared_lock_body
+    return <<EOS
+<D:lockinfo xmlns:D='DAV:'> 
+  <D:lockscope><D:shared/></D:lockscope> 
+  <D:locktype><D:write/></D:locktype> 
+  <D:owner> 
+    <D:href>http://example.org/~ejw/contact.html</D:href> 
+  </D:owner> 
+</D:lockinfo>
+EOS
+  end
+  
   
 end
 
