@@ -231,5 +231,6 @@ Lock.create!( :owner => ren,
 
 put_new httplockroot, 'b', 'b', ren
 
-Collection.mkcol_p '/httplock/hr/recruiting/resumes', ren
+resumes = Collection.mkcol_p '/httplock/hr/recruiting/resumes', ren
 Collection.mkcol_p '/httplock/hr/archives', ren
+put_new resumes, 'fred.txt', 'freds resume', ren

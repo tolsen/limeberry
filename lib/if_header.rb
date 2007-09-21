@@ -224,7 +224,7 @@ module IfHeaderParser
     end
 
     def evaluate(principal)
-      lists.evaluate(@tag, principal)
+      @lists.evaluate(Bind.locate(@tag), principal)
     end
     
   end

@@ -128,8 +128,8 @@ class HttpLockTest < DavIntegrationTestCase
   # WebDAV book (L. Dusseault) pp. 188-90 8.4.5 (Listing 8-8)
   def test_move_under_single_lock
     locktoken = request_and_assert_lock '/httplock/hr', 200, 'I' 
-
     move_headers = @ren_auth.merge(dest_header('/httplock/hr/archives/resumes'))
+    
     move '/httplock/hr/recruiting/resumes', nil, move_headers
     assert_response 423
 
@@ -148,43 +148,86 @@ class HttpLockTest < DavIntegrationTestCase
   def test_move_between_locks
     resumes_locktoken = request_and_assert_lock '/httplock/hr/recruiting/resumes', 200, 'I'
     archives_locktoken = request_and_assert_lock '/httplock/hr/archives', 200, 'I'
-
-    move_headers = @ren_auth.merge(dest_header('/httplock/hr/archives/resumes'))
-    assert_move_response = lambda do |*args|
-      expected_response, if_hdr = args
-      
-      headers = move_headers
-      headers['HTTP_IF'] = if_hdr unless if_hdr.nil?
-      move '/httplock/hr/recruiting/resumes', nil, headers
-      assert_response expected_response
-
-      success = expected_response / 100 == 2
-      
-      assert success ^ Bind.exists?('/httplock/hr/recruiting/resumes')
-      assert success ^ !Bind.exists?('/httplock/hr/archives/resumes')
-    end
-
-    assert_move_response.call 423
-    assert_move_response.call 423, "(<#{resumes_locktoken}>)"
-    assert_move_response.call 412, "(<#{archives_locktoken}>)"
-    assert_move_response.call 412, "(<#{resumes_locktoken}> <#{archives_locktoken}>)"
-
-    assert_move_response.call 201, "(<#{resumes_locktoken}>) (<#{archives_locktoken}>)"
+    
+    assert_hr_move_response 423
+    assert_hr_move_response 423, "(<#{resumes_locktoken}>)"
+    assert_hr_move_response 412, "(<#{archives_locktoken}>)"
+    assert_hr_move_response 412, "(<#{resumes_locktoken}> <#{archives_locktoken}>)"
+    assert_hr_move_response 201, "(<#{resumes_locktoken}>) (<#{archives_locktoken}>)"
   end
 
+  # WebDAV book (L. Dusseault) pp. 190-91 8.4.6 (Listing 8-10)
+  def test_move_between_locks_tagged
+    resumes_locktoken = request_and_assert_lock '/httplock/hr/recruiting/resumes', 200, 'I'
+    archives_locktoken = request_and_assert_lock '/httplock/hr/archives', 200, 'I'
+
+    bad_if = if_header( '/httplock/hr/recruiting/resumes' => archives_locktoken,
+                        '/httplock/hr/archives' => resumes_locktoken )
+    assert_hr_move_response 412, bad_if
+    
+    good_if = if_header( '/httplock/hr/archives' => archives_locktoken,
+                         '/httplock/hr/recruiting/resumes' => resumes_locktoken )
+    assert_hr_move_response 201, good_if
+  end
+
+  # WebDAV book (L. Dusseault) pp. 191-92 8.4.6 (Listing 8-11)
+#  def test_delete_with_child_locked
+    
+
+  def absolute_url(path) "http://www.example.com#{path}"; end
+
+  def assert_hr_move_response expected_response, if_hdr = nil
+    headers = @ren_auth.merge(dest_header('/httplock/hr/archives/resumes'))
+    
+    case if_hdr
+    when Hash then headers.merge! if_hdr
+    when nil
+    else
+      headers['HTTP_IF'] = if_hdr
+    end
+    
+    move '/httplock/hr/recruiting/resumes', nil, headers
+    assert_response expected_response
+
+    success = expected_response / 100 == 2
+    
+    assert success ^ Bind.exists?('/httplock/hr/recruiting/resumes')
+    assert success ^ !Bind.exists?('/httplock/hr/archives/resumes')
+  end
+  
+  
   def dest_header path
-    { 'HTTP_DESTINATION' => "http://www.example.com#{path}" }
+    { 'HTTP_DESTINATION' => absolute_url(path) }
   end
 
   def discover_locktoken xmlbody
     doc = REXML::Document.new xmlbody
-    REXML::XPath.first doc, '/prop/lockdiscovery/activelock/locktoken/href/text()', { '' => 'DAV:' }
+    REXML::XPath.first(doc, '/prop/lockdiscovery/activelock/locktoken/href/text()', { '' => 'DAV:' }).to_s
   end
-  
-      
+
+
+  # creates an If header hash
+
+  # can be called with one of the following
+  # 1. hash of strings to token
+  # 2. hash of strings to array of tokens
+  # 3. tokens
+  # 4. token arrays
+  # where a token can be a Lock, Resource, or String
   def if_header *args
-    args = [ args ] unless args[0].is_a? Array
-    header = args.map{ |tkns| "(" + tkns.map{ |t| t.delimited_token }.join(' ') + ")" }.join ' '
+    tags = args[0].is_a?(Hash) ? args[0] : { :untagged => args }
+
+    header = tags.map do |k, v|
+      tag = k == :untagged ? "" : "<#{absolute_url(k)}> "
+      v = [ v ] unless v.is_a?(Array)
+      v = [ v ] unless v[0].is_a?(Array)
+      tag + (v.map do |tkns|
+        "(" + tkns.map do |t|
+                 t.is_a?(String) ? "<#{t}>" : t.delimited_token
+        end.join(' ') + ")"
+      end.join ' ')
+    end.join ' '
+
     { 'HTTP_IF' => header }
   end
 
