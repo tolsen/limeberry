@@ -260,7 +260,7 @@ class Bind < ActiveRecord::Base
 
   def locks_impede_bind_deletion?(principal, *locktokens)
     locks.map{ |l| l.resource }.uniq.any? do |r|
-      r.locks_impede_modify? principal, *locktokens
+      return r if r.locks_impede_modify? principal, *locktokens
     end
   end
 

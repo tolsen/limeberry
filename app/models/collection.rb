@@ -138,7 +138,8 @@ class Collection < Resource
       Privilege.priv_unbind.assert_granted(self, principal)
 
       raise LockedError if locks_impede_modify?(principal, *locktokens)
-      raise LockedError if bind.locks_impede_bind_deletion?(principal, *locktokens)
+      res = nil
+      raise LockedError.new(res) if (res = bind.locks_impede_bind_deletion?(principal, *locktokens))
 
       bind.destroy
 

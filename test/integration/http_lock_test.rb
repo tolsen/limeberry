@@ -171,9 +171,24 @@ class HttpLockTest < DavIntegrationTestCase
   end
 
   # WebDAV book (L. Dusseault) pp. 191-92 8.4.6 (Listing 8-11)
-#  def test_delete_with_child_locked
-    
+  def test_delete_with_child_locked
+    freds_resume = '/httplock/hr/recruiting/resumes/fred.txt'
+    fred_locktoken = request_and_assert_lock freds_resume
 
+    delete '/httplock/hr/recruiting/resumes', nil, @ren_auth
+    assert_response 207
+    # TODO.  verify xml response
+
+    head freds_resume, nil, @ren_auth
+    assert_response 200
+
+    hdrs = @ren_auth.merge if_header(freds_resume => fred_locktoken)
+    delete '/httplock/hr/recruiting/resumes', nil, hdrs
+    assert_response 204
+
+    assert !Bind.exists?('/httplock/hr/recruiting/resumes')
+  end
+    
   def absolute_url(path) "http://www.example.com#{path}"; end
 
   def assert_hr_move_response expected_response, if_hdr = nil

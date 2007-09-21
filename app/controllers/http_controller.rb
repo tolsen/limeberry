@@ -36,6 +36,9 @@ class HttpController < ApplicationController
     parent = Collection.parent_collection(@path)
     parent.unbind(File.basename(@path), @principal, *@if_locktokens)
     render :nothing => true, :status => 204
+  rescue HttpError => @error
+    raise if @error.resource.nil? or @error.url == @path
+    render :template => "webdav/move.rxml", :status => 207
   end
 
   def get
