@@ -233,4 +233,5 @@ put_new httplockroot, 'b', 'b', ren
 
 resumes = Collection.mkcol_p '/httplock/hr/recruiting/resumes', ren
 Collection.mkcol_p '/httplock/hr/archives', ren
+put_new resumes, 'gburlow.txt', 'gburlows resume', ren
 put_new resumes, 'fred.txt', 'freds resume', ren

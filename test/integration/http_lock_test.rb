@@ -148,6 +148,9 @@ class HttpLockTest < DavIntegrationTestCase
 
   # WebDAV book (L. Dusseault) pp. 188-90 8.4.5 (Listing 8-9)
   def test_move_between_locks
+    mkcol '/httplock/hr/archives/resumes', nil, @ren_auth
+    assert_response 201
+    
     resumes_locktoken = request_and_assert_lock '/httplock/hr/recruiting/resumes', 200, 'I'
     archives_locktoken = request_and_assert_lock '/httplock/hr/archives', 200, 'I'
     
@@ -160,15 +163,18 @@ class HttpLockTest < DavIntegrationTestCase
 
   # WebDAV book (L. Dusseault) pp. 190-91 8.4.6 (Listing 8-10)
   def test_move_between_locks_tagged
+    mkcol '/httplock/hr/archives/resumes', nil, @ren_auth
+    assert_response 201
+
     resumes_locktoken = request_and_assert_lock '/httplock/hr/recruiting/resumes', 200, 'I'
     archives_locktoken = request_and_assert_lock '/httplock/hr/archives', 200, 'I'
 
-    bad_if = if_header( '/httplock/hr/recruiting/resumes' => archives_locktoken,
-                        '/httplock/hr/archives' => resumes_locktoken )
+    bad_if = if_header( '/httplock/hr/recruiting/resumes/gburlow.txt' => archives_locktoken,
+                        '/httplock/hr/archives/resumes' => resumes_locktoken )
     assert_hr_move_response 412, bad_if
     
-    good_if = if_header( '/httplock/hr/archives' => archives_locktoken,
-                         '/httplock/hr/recruiting/resumes' => resumes_locktoken )
+    good_if = if_header( '/httplock/hr/archives/resumes' => archives_locktoken,
+                         '/httplock/hr/recruiting/resumes/gburlow.txt' => resumes_locktoken )
     assert_hr_move_response 201, good_if
   end
 
@@ -226,7 +232,7 @@ class HttpLockTest < DavIntegrationTestCase
   def absolute_url(path) "http://www.example.com#{path}"; end
 
   def assert_hr_move_response expected_response, if_hdr = nil
-    headers = @ren_auth.merge(dest_header('/httplock/hr/archives/resumes'))
+    headers = @ren_auth.merge(dest_header('/httplock/hr/archives/resumes/gburlow.txt'))
     
     case if_hdr
     when Hash then headers.merge! if_hdr
@@ -235,13 +241,13 @@ class HttpLockTest < DavIntegrationTestCase
       headers['HTTP_IF'] = if_hdr
     end
     
-    move '/httplock/hr/recruiting/resumes', nil, headers
+    move '/httplock/hr/recruiting/resumes/gburlow.txt', nil, headers
     assert_response expected_response
 
     success = expected_response / 100 == 2
     
-    assert success ^ Bind.exists?('/httplock/hr/recruiting/resumes')
-    assert success ^ !Bind.exists?('/httplock/hr/archives/resumes')
+    assert success ^ Bind.exists?('/httplock/hr/recruiting/resumes/gburlow.txt')
+    assert success ^ !Bind.exists?('/httplock/hr/archives/resumes/gburlow.txt')
   end
   
   
