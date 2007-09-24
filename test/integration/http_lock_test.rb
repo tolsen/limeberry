@@ -198,6 +198,30 @@ class HttpLockTest < DavIntegrationTestCase
 
     assert !Bind.exists?('/httplock/hr/recruiting/resumes')
   end
+
+  # WebDAV book (L. Dusseault) pp. 192-93 8.4.7 (Listing 8-12)
+  def test_put_too_many_locktokens_given
+    b_locktoken = request_and_assert_lock '/httplock/b'
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header(@a_lock, b_locktoken))
+    assert_response 412
+
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header([@a_lock, b_locktoken], [:not, "no-lock"]))
+    assert_response 204
+
+    # DAV:no-lock example from RFC 4918 10.4.8
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header([@a_lock, b_locktoken], [:not, "DAV:no-lock"]))
+    assert_response 204
+  end
+
+  def test_put_mistagged_locktoken
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header('/httplock/b' => @a_lock))
+    assert_response 412
+
+    put '/httplock/a', 'hello', @ren_auth.merge(if_header('/httplock/b' => @a_lock,
+                                                          '/httplock/a' => [:not, "DAV:no-lock"]))
+    assert_response 204
+  end
+  
     
   def absolute_url(path) "http://www.example.com#{path}"; end
 
@@ -247,8 +271,12 @@ class HttpLockTest < DavIntegrationTestCase
       v = [ v ] unless v.is_a?(Array)
       v = [ v ] unless v[0].is_a?(Array)
       tag + (v.map do |tkns|
-        "(" + tkns.map do |t|
-                 t.is_a?(String) ? "<#{t}>" : t.delimited_token
+               "(" + tkns.map do |t|
+                 case t
+                 when :not then "Not"
+                 when String then "<#{t}>"
+                 else t.delimited_token
+                 end
         end.join(' ') + ")"
       end.join ' ')
     end.join ' '
