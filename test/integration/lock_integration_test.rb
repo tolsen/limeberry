@@ -30,7 +30,7 @@ require "test/integration/dav_integration_test.rb"
 
 require 'test/xml'
 
-class HttpLockTest < DavIntegrationTestCase  
+class LockIntegrationTest < DavIntegrationTestCase  
 
   def setup
     super
