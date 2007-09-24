@@ -227,8 +227,37 @@ class HttpLockTest < DavIntegrationTestCase
                                                           '/httplock/a' => [:not, "DAV:no-lock"]))
     assert_response 204
   end
+
+  # WebDAV book (L. Dusseault) p. 195 8.4.12 (Listing 8-13)
+  def test_put_new_resource_locked_collection_zero_depth
+    resumes_locktoken = request_and_assert_lock '/httplock/hr/recruiting/resumes', 200, '0'
+    headers = @ren_auth.merge 'HTTP_IF_NONE_MATCH' => '*'
+    put '/httplock/hr/recruiting/resumes/ldusseault.txt', 'lisa resume', headers
+    assert_response 423
+
+    headers.merge! if_header('/httplock/hr/recruiting/resumes/' => resumes_locktoken)
+    put '/httplock/hr/recruiting/resumes/ldusseault.txt', 'lisa resume', headers
+    assert_response 201
+
+    lisa_resume = Bind.locate '/httplock/hr/recruiting/resumes/ldusseault.txt'
+    assert lisa_resume.locks.empty?
+  end
   
-    
+  def test_put_new_resource_locked_collection_infinite_depth
+    resumes_locktoken = request_and_assert_lock '/httplock/hr/recruiting/resumes', 200, 'I'
+    headers = @ren_auth.merge 'HTTP_IF_NONE_MATCH' => '*'
+    put '/httplock/hr/recruiting/resumes/ldusseault.txt', 'lisa resume', headers
+    assert_response 423
+
+    headers.merge! if_header('/httplock/hr/recruiting/resumes/' => resumes_locktoken)
+    put '/httplock/hr/recruiting/resumes/ldusseault.txt', 'lisa resume', headers
+    assert_response 201
+
+    lisa_resume = Bind.locate '/httplock/hr/recruiting/resumes/ldusseault.txt'
+    assert lisa_resume.locks.size == 1
+    assert_equal resumes_locktoken, lisa_resume.locks[0].locktoken
+  end
+  
   def absolute_url(path) "http://www.example.com#{path}"; end
 
   def assert_hr_move_response expected_response, if_hdr = nil

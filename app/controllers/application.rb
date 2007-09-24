@@ -152,8 +152,7 @@ class ApplicationController < ActionController::Base
       if_parse_result = IfHeaderParser::parse_if_header(@if)
       @if_locktokens = if_parse_result.lock_tokens.map {|locktoken| Utility.locktoken_to_uuid(locktoken)}
 
-
-      raise PreconditionFailedError unless @resource && if_parse_result.evaluate(@resource, @principal)
+      raise PreconditionFailedError unless if_parse_result.evaluate(@resource, @principal)
       
     end
   end

@@ -192,6 +192,7 @@ module IfHeaderParser
     end
     
     def evaluate(resource, principal)
+      return false if resource.nil?
       Privilege.priv_read.assert_granted(resource, principal)
       any? { |l| l.evaluate resource }
     end
