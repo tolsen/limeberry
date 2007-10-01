@@ -1,0 +1,6 @@
+* Work around IE query parameters bug
+* Strict directives checking
+* AuthorizationInfo should only return rspauth and nonce and the like if :qop == 'auth-int'
+* Expire nonce
+* Address security considerations
+* Support for proxies
