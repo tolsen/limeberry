@@ -3,5 +3,30 @@ on Rails.
 
 General Software Requirements: xdelta, mysql server & client
 
-Gem Requirements: httpauth, mysql, rake, shared-mime-info, uuidtools
+Gem Requirements: mysql, rake, shared-mime-info, uuidtools
 
+Gem Conflicts: httpauth
+
+
+Lime Berry is the result of the hard work of many contributors.
+Contributors include:
+
+Pawan Agarwal
+Sugam Agarwal
+Ritesh Arora
+Ryan Davis
+Eric Hodel
+Amy Hoy
+Pranay Jain
+Sriram Malladi
+Sharad Maloo
+Michael Nutt
+Tim Olsen
+Chetan Reddy
+Umang Sharan
+Paritosh Shah
+Shubham Singal
+Gyanit Singh
+Nitin Sivakrishnan
+Christine Yen
+David Yeu
