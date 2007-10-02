@@ -120,12 +120,14 @@ module ActionController #:nodoc:
 
         disposition = options[:disposition].dup || 'attachment'
 
-        disposition <<= %(; filename="#{options[:filename]}") if options[:filename]
+        unless disposition == 'none'
+          disposition <<= %(; filename="#{options[:filename]}") if options[:filename]
+          headers['Content-Disposition'] = disposition
+        end
 
         headers.update(
           'Content-Length'            => options[:length],
           'Content-Type'              => options[:type].to_s.strip,  # fixes a problem with extra '\r' with some browsers
-          'Content-Disposition'       => disposition,
           'Content-Transfer-Encoding' => 'binary'
         )
 

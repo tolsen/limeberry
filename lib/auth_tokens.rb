@@ -28,7 +28,6 @@
 require 'httpauth/basic'
 require 'httpauth/digest'
 
-
 module Limeberry
   # Authentication tokens
   # implements methods
@@ -44,7 +43,7 @@ module Limeberry
       @username = username
     end
 
-    def to_principal
+    def principal
       if @username
         Principal.find_by_name(@username)
       else
@@ -62,7 +61,7 @@ module Limeberry
       @username, @password = HTTPAuth::Basic.unpack_authorization(auth_header) unless auth_header.nil?
     end
 
-    def to_principal
+    def principal
       return Principal.unauthenticated if @username.nil?
       principal = User.find_by_name(@username)
       raise UnauthorizedError unless (principal and principal.password_matches? @password)
@@ -86,25 +85,26 @@ module Limeberry
 
     def initialize(auth_header, method)
       @method = method.upcase
-      @credentials = Credentials.from_header(auth_header)
+      @credentials = Credentials.from_header(auth_header) if auth_header
     rescue HTTPAuth::UnwellformedHeader
       raise BadRequestError
     end
     
-    def to_principal
+    def principal
+      return @principal if @principal
       if @credentials
         principal = User.find_by_name(@credentials.username)
         
         raise UnauthorizedError unless principal && @credentials.validate_digest(principal.pwhash, :method => @method)      
-        principal
+        @principal = principal
       else
-        Principal.unauthenticated
+        @principal = Principal.unauthenticated
       end
     end
 
     def authentication_info
-      return nil if @credentials.nil?
-      (AuthenticationInfo.from_credentials @credentials).to_header
+      return nil if @credentials.nil? || !(principal.is_a? User)
+      (AuthenticationInfo.from_credentials @credentials, :digest => principal.pwhash).to_header
     end
 
     def www_authenticate

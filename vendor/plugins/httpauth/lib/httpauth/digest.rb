@@ -54,8 +54,7 @@ module HTTPAuth
         # * <tt>variant</tt>: Specifies whether the directives are for an Authorize header (:credentials),
         #   for a WWW-Authenticate header (:challenge) or for a Authentication-Info header (:auth_info).
         def encode_directives(h, variant)
-          encode = {:domain => :list_to_space_quoted_string, :algorithm => false, :stale => :str_to_bool, :nc => :int_to_hex,
-                    :nextnonce => :int_to_hex}
+          encode = {:domain => :list_to_space_quoted_string, :algorithm => false, :stale => :str_to_bool, :nc => :int_to_hex}
           if [:credentials, :auth].include? variant
             encode.merge! :qop => false
           elsif variant == :challenge
@@ -202,7 +201,7 @@ module HTTPAuth
               h[:cnonce],
               h[:qop],
               send("#{variant}_digest_a2".intern, h)
-            )
+                                                     )
           end
         end
         
@@ -334,7 +333,7 @@ module HTTPAuth
       #   * <tt>:method</tt>: The HTTP Verb in uppercase, ie. GET or POST.
       #   * <tt>:password</tt>: The password for the sent username and realm, either a password or digest should be
       #     provided.
-      #   * <tt>:digest</tt>: The digest for the specified username and realm, either a digest or password should ne
+      #   * <tt>:digest</tt>: The digest for the specified username and realm, either a digest or password should be
       #     provided.
       def validate(options)
         ho = @h.merge(options)
@@ -469,6 +468,7 @@ module HTTPAuth
       # * <tt>h</tt>: A Hash with directives, normally this is filled with the directives coming from a
       #   Credentials instance.
       # * <tt>options</tt>: Used to set or override data from the Authentication-Info header
+      #   * <tt>:digest</tt>: The digest for the specified username and realm.
       #   * <tt>:response_body</tt> The body of the response that's going to be sent to the client. This is a
       #     compulsory option if the qop directive is 'auth-int'.
       def initialize(h, options={})
@@ -485,8 +485,10 @@ module HTTPAuth
       # Updates @h from options, generally called after an instance was created with <tt>from_credentials</tt>.
       def update_from_credentials!(options)
         # TODO: update @h after nonce invalidation
+        @h[:digest] = options[:digest] if options.include? :digest
         @h[:response_body] = options[:response_body]
-        @h[:nextnonce] = @h[:nc] + 1
+        @h[:nextnonce] = Utils.create_nonce @h[:salt]
+        @h[:rspauth] = Utils.calculate_digest(@h, nil, :response)
       end
     end
     

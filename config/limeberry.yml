@@ -42,7 +42,7 @@ production:
 development:
   # Authentication scheme configuration
   # Should be part of the environment at server startup
-  authentication_scheme: basic
+  authentication_scheme: digest
 #  lock_unmapped_url: LER
 
 test:

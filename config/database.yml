@@ -30,14 +30,13 @@ test:
   host: <%= ENV['LIMEBERRY_TEST_HOST'] %>
 #  socket: <%=ENV['LIMEBERRY_TEST_SOCKET'] %>
 
-
-
 production:
   adapter: mysql
-  database: limeberry_production
-  username: root
-  password:
-  socket: /var/run/mysqld/mysqld.sock
+  database: <%= ENV['LIMEBERRY_PROD_DB'] %>
+  username: <%= ENV['LIMEBERRY_PROD_USER'] %>
+  password: "<%= ENV['LIMEBERRY_PROD_PASS'] %>"
+  host: <%= ENV['LIMEBERRY_PROD_HOST'] %>
+#  socket: <%=ENV['LIMEBERRY_PROD_SOCKET'] %>
 
 
 # PostgreSQL versions 7.4 - 8.1

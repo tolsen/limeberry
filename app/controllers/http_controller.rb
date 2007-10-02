@@ -51,7 +51,10 @@ class HttpController < ApplicationController
       render :nothing => true, :status => 204
     else
       headers['Content-Language'] = body.contentlanguage
-      send_file body.full_path, :type => body.mimetype
+      send_file(body.full_path,
+                :disposition => 'none',
+                :type => body.mimetype,
+                :filename => File.basename(@path))
     end
   end
 

@@ -123,14 +123,15 @@ class ApplicationController < ActionController::Base
       auth_token = Limeberry::BasicAuthToken.new(request.env["HTTP_AUTHORIZATION"])
     when "digest"
       auth_token = Limeberry::DigestAuthToken.new(request.env["HTTP_AUTHORIZATION"], request.method.to_s)
-      headers["Authentication-Info"] = auth_token.header
+      headers["Authentication-Info"] = auth_token.authentication_info
     end
-    @principal = auth_token.to_principal
+    @principal = auth_token.principal
     yield
   rescue UnauthorizedError => e
     logger.debug("User Unauthorized.")
     headers['WWW-Authenticate'] = auth_token.www_authenticate if
       auth_token.respond_to? :www_authenticate
+    logger.debug "WWW-Authenticate: #{headers['WWW-Authenticate']}"
     raise
   end
 
