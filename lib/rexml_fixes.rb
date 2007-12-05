@@ -127,6 +127,24 @@ module REXML
       map{ |k, v| [k, v] }
     end
   end
+
+  if (VERSION.split('.') <=> "3.1.7.1".split('.')) >= 0
+
+    module Node
+
+      def to_s indent=nil
+        unless indent.nil?
+#          Kernel.warn( "#{self.class.name}.to_s(indent) parameter is deprecated" )
+          f = REXML::Formatters::Pretty.new( indent )
+        else
+          f = REXML::Formatters::Default.new
+        end
+        f.write( self, rv = "" )
+        return rv
+      end
+    end
+  end
+
   
 end
 
