@@ -22,6 +22,7 @@
 
 require 'constants'
 require 'digest/sha1'
+require 'rexml/document'
 
 
 Enumerable.module_eval do
@@ -140,8 +141,18 @@ module Utility
       locktoken_array.map do |locktoken|
         locktoken_to_uuid locktoken
       end
-    end    
+    end
 
+
+    XML_FORMATTER = REXML::Formatters::Default.new unless defined? XML_FORMATTER
+    
+    # node: REXML node
+    def xml_print node
+      output = ''
+      XML_FORMATTER.write node, output
+      return output
+    end
+    
   end
 
 end

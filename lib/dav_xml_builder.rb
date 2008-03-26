@@ -48,6 +48,32 @@ module Builder
       _newline
     end
 
+    def dav_ns_declared!
+      @dav_ns_declared
+    end
+
+    def tag_dav_ns!(sym, *args, &block)
+      @dav_ns_declared = true
+      args.push 'xmlns:D' => 'DAV:'
+      tag!(sym, *args, &block)
+    ensure
+      @dav_ns_declared = false
+    end
+    
+    def D(*args, &block)
+      if dav_ns_declared!
+        method_missing('D', *args, &block)
+      else
+        args.push 'xmlns:D' => 'DAV:'
+        begin
+          @dav_ns_declared = true
+          method_missing('D', *args, &block)
+        ensure
+          @dav_ns_declared = false
+        end
+      end
+    end
+
   end
   
 end

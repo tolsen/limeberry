@@ -22,7 +22,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-xml.tag!("D:multistatus", "xmlns:D" => "DAV:") do
+xml.D :multistatus do
   @error2urls.each do |e, urls|
     xml.D :response do
       urls.each { |u| xml.D(:href, File.join(BASE_WEBDAV_PATH, u)) }

@@ -61,14 +61,14 @@ class AceTest < DavUnitTestCase
   end
 
   def test_regenerate_principal_property_liveprop
-    @resource.displayname = "<D:href>/users/ren</D:href>"
+    @resource.displayname = "<D:href xmlns:D='DAV:'>/users/ren</D:href>"
     @resource.save!
     ace = @resource.aces.create!(:grantdeny => Ace::GRANT,
                                  :property_namespace => Namespace.dav,
                                  :property_name => 'displayname')
     assert_equal @ren, ace.principal
 
-    @resource.displayname = "<D:href>/users/joe</D:href>"
+    @resource.displayname = "<D:href xmlns:D='DAV:'>/users/joe</D:href>"
     @resource.save!
     ace.reload.save!
     assert_equal @joe, ace.principal

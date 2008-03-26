@@ -57,9 +57,7 @@ class Property < ActiveRecord::Base
   def element=(element)
     self.namespace = Namespace.find_or_create_by_name!(element.namespace)
     self.name = element.name
-    out = ''
-    element.write out
-    self.value = out
+    self.value = Utility.xml_print element
   end
 
   def resource=(newresource)

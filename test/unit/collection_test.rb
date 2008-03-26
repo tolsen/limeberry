@@ -649,7 +649,7 @@ class CollectionTest < DavUnitTestCase
 
     @root.liveprops[PropKey.get('DAV:', 'resourcetype'), xml]
     
-    expected_out = "<D:resourcetype><D:collection/></D:resourcetype>"
+    expected_out = "<D:resourcetype xmlns:D='DAV:'><D:collection/></D:resourcetype>"
     assert_rexml_equal(expected_out, out)
   end
   
@@ -698,7 +698,7 @@ class CollectionTest < DavUnitTestCase
 
   def test_supported_privilege_set
     expected = <<EOS
-<D:supported-privilege-set>
+<D:supported-privilege-set xmlns:D='DAV:'>
   <D:supported-privilege>
     <D:privilege><D:all/></D:privilege>
     <D:description xml:lang="en">#{Privilege.priv_all.description}</D:description>

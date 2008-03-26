@@ -59,7 +59,7 @@ class LockNullResourceTest < DavUnitTestCase
   def test_resourcetype
     setup_xml
     @locknull.resourcetype(@xml)
-    assert_rexml_equal('<D:resourcetype><D:locknullresource/></D:resourcetype>', @xml_out)
+    assert_rexml_equal("<D:resourcetype xmlns:D='DAV:'><D:locknullresource/></D:resourcetype>", @xml_out)
   end
 
   def test_locknull_get_properties
@@ -72,10 +72,12 @@ class LockNullResourceTest < DavUnitTestCase
 
     setup_xml
 
-    @xml.dummyroot{ @locknull.propfind(@xml, @limeberry, false, *propkeys) }
+    @xml.tag_dav_ns! :dummyroot do
+      @locknull.propfind(@xml, @limeberry, false, *propkeys)
+    end
 
     expected_out = <<EOS
-<dummyroot>
+<dummyroot xmlns:D='DAV:'>
   <D:propstat>
     <D:prop>
       <D:getcontentlanguage/>

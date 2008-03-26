@@ -97,13 +97,13 @@ class PrincipalTest < DavUnitTestCase
     xml = Builder::XmlMarkup.new(:target => out)
     @principal.principal_url(xml)
 
-    assert_equal("<D:href>#{Principal::PRINCIPALS_COLLECTION_PATH}/principal</D:href>", out)
+    assert_equal("<D:href xmlns:D=\"DAV:\">#{Principal::PRINCIPALS_COLLECTION_PATH}/principal</D:href>", out)
   end
 
   def test_resourcetype
     setup_xml
     @limeberry.resourcetype(@xml)
-    assert_rexml_equal('<D:resourcetype><D:principal/></D:resourcetype>',
+    assert_rexml_equal("<D:resourcetype xmlns:D='DAV:'><D:principal/></D:resourcetype>",
                        @xml_out)
   end
   
@@ -136,7 +136,7 @@ class PrincipalTest < DavUnitTestCase
 
   def test_supported_privilege_set
     expected = <<EOS
-<D:supported-privilege-set>
+<D:supported-privilege-set xmlns:D='DAV:'>
   <D:supported-privilege>
     <D:privilege><D:all/></D:privilege>
     <D:description xml:lang="en">#{Privilege.priv_all.description}</D:description>

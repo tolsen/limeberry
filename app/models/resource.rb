@@ -431,7 +431,9 @@ class Resource < ActiveRecord::Base
   end
 
   def dav_displayname(xml)
-    xml.tag_with_unescaped_text! "D:displayname", self.displayname
+    xml.tag_with_unescaped_text!("D:displayname",
+                                 self.displayname,
+                                 'xmlns:D' => 'DAV:')
   end
 
   def dav_displayname=(new_displayname)
@@ -590,7 +592,6 @@ class Resource < ActiveRecord::Base
     end
   end
 
-  
   def xml_wrap_liveprop(propkey, method, xml = nil, principal = nil)
     method = self.method(method)
     
@@ -703,8 +704,7 @@ class Resource < ActiveRecord::Base
       liveprops[pk] = element.innerXML
       self.save! # should possibly be moved elsewhere
     else
-      value = ''
-      element.write value
+      value = Utility.xml_print element
       property = properties.find_or_build_by_propkey(pk)
       property.value = value unless value.nil? # is the nil check still needed?
       property.save!

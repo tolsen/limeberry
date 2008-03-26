@@ -190,7 +190,7 @@ class ResourceTest < DavUnitTestCase
     assert_raise(NotFoundError) { @collection.getcontentlength(@xml) }
     setup_xml
     @resource.getcontentlength(@xml)
-    assert_rexml_equal("<D:getcontentlength>#{@src_content.size}</D:getcontentlength>", @xml_out)
+    assert_rexml_equal("<D:getcontentlength xmlns:D='DAV:'>#{@src_content.size}</D:getcontentlength>", @xml_out)
   end
 
   def test_copy_resource_over_collection
@@ -529,13 +529,13 @@ EOS
     acl_pk = PropKey.get('DAV:', 'acl')
     
     setup_xml
-    @xml.dummyroot do
+    @xml.tag_dav_ns! :dummyroot  do
       @resource.propfind(@xml, @joe, false, @pk1, @pk2,
                          acl_pk, displayname_pk)
     end
 
     expected_out = <<EOS
-<dummyroot>
+<dummyroot xmlns:D='DAV:'>
   <D:propstat>
     <D:prop>
       <D:acl/>
@@ -546,7 +546,7 @@ EOS
     <D:prop>
       <N:randomname1 xmlns:N="randomns1">randomvalue1</N:randomname1>
       <N:randomname2 xmlns:N="randomns2">randomvalue2</N:randomname2>
-      <D:displayname>this is my displayname</D:displayname>
+      <D:displayname xmlns:D='DAV:'>this is my displayname</D:displayname>
     </D:prop>
     <D:status>HTTP/1.1 200 OK</D:status>
   </D:propstat>
@@ -575,12 +575,12 @@ EOS
   def test_propfind_propname
     setup_xml
 
-    @xml.dummyroot do
+    @xml.tag_dav_ns! :dummyroot do
       @resource.send(:propfind_propname, @xml)
     end
 
     expected_out = <<EOS
-<dummyroot>
+<dummyroot xmlns:D='DAV:'>
   <D:creationdate/>
   <D:displayname/>
   <D:getcontentlanguage/>
@@ -614,7 +614,7 @@ EOS
     setup_xml
     @resource.dav_resource_id(@xml)
     expected_urn = Utility.uuid_to_urn(@resource.uuid)
-    expected_out = "<D:resource-id><D:href>#{expected_urn}</D:href></D:resource-id>"
+    expected_out = "<D:resource-id xmlns:D='DAV:'><D:href>#{expected_urn}</D:href></D:resource-id>"
     assert_rexml_equal(expected_out, @xml_out)
   end
 
@@ -709,7 +709,7 @@ EOS
   def test_resourcetype
     setup_xml
     @resource.resourcetype(@xml)
-    assert_rexml_equal('<D:resourcetype/>', @xml_out)
+    assert_rexml_equal("<D:resourcetype xmlns:D='DAV:'/>", @xml_out)
   end
 
   def test_supportedlock
@@ -789,7 +789,7 @@ EOS
       setup_xml
       klass.new.supported_live_property_set(@xml)
 
-      expected_out = "<D:supported-live-property-set>"
+      expected_out = "<D:supported-live-property-set xmlns:D='DAV:'>"
       klass.liveprops.each do |propkey, live_prop_info|
         expected_out << "<D:supported-live-property><D:prop>"
         expected_out << "<D:#{propkey.name}/>"
@@ -872,7 +872,7 @@ EOS
   def test_group
     setup_xml
     @resource.group @xml
-    assert_rexml_equal "<D:group/>", @xml_out
+    assert_rexml_equal "<D:group xmlns:D='DAV:'/>", @xml_out
   end
 
   def test_supported_privileges
@@ -886,7 +886,7 @@ EOS
   
   def test_supported_privilege_set
     expected = <<EOS
-<D:supported-privilege-set>
+<D:supported-privilege-set xmlns:D='DAV:'>
   <D:supported-privilege>
     <D:privilege><D:all/></D:privilege>
     <D:description xml:lang="en">#{Privilege.priv_all.description}</D:description>

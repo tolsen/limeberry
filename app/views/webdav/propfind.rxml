@@ -24,7 +24,7 @@
 
 require 'set'
 
-xml.tag!("D:multistatus", "xmlns:D" => "DAV:") do
+xml.D :multistatus do
   resources_seen = Set.new if @depth.infinite?
 
   @paths.each do |p|

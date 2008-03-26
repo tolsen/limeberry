@@ -74,21 +74,27 @@ class PropKey
 
   end # End Class Methods
 
-  def tag_args
-    dav? ? ["D:#{name}"] : ["R:#{name}", { "xmlns:R" => ns }]
+  def tag_args xml
+    if dav?
+      args = [:D, name.to_sym]
+      args.push "xmlns:D" => "DAV:" unless xml.dav_ns_declared!
+      return args
+    else
+      return ["R:#{name}", { "xmlns:R" => ns }]
+    end
   end
   
   
   def xml(xml, &block)
     if block_given?
-      xml.tag!(*tag_args, &block)
+      xml.tag!(*tag_args(xml), &block)
     else
-      xml.tag!(*tag_args)
+      xml.tag!(*tag_args(xml))
     end
   end
 
   def xml_with_unescaped_text(xml, text)
-    targs = tag_args << text
+    targs = tag_args(xml) << text
     xml.tag_with_unescaped_text!(*targs)
   end
   

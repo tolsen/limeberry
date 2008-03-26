@@ -65,7 +65,7 @@ class GroupTest < DavUnitTestCase
     xml = Builder::XmlMarkup.new(:target => out)
     @alpha.principal_url(xml)
 
-    assert_equal("<D:href>#{Group::GROUPS_COLLECTION_PATH}/alpha</D:href>", out)
+    assert_equal("<D:href xmlns:D=\"DAV:\">#{Group::GROUPS_COLLECTION_PATH}/alpha</D:href>", out)
   end
 
   def setup_group_member_set
@@ -74,7 +74,7 @@ class GroupTest < DavUnitTestCase
     expected=""
 
     [ @joe, sharad, shubham].each { |m| @alpha.add_member(m) 
-      expected << "<D:href>#{User.users_collection_path}/#{m.name}</D:href>"    
+      expected << "<D:href xmlns:D=\"DAV:\">#{User.users_collection_path}/#{m.name}</D:href>"
     }
     out = ""
     xml = Builder::XmlMarkup.new(:target => out)
@@ -90,7 +90,7 @@ class GroupTest < DavUnitTestCase
   #tests group_member_set=
   def test_group_member_set_set
     expected, xml, out = setup_group_member_set
-    expected.sub!("<D:href>#{User.users_collection_path}/joe</D:href>", "")
+    expected.sub!("<D:href xmlns:D=\"DAV:\">#{User.users_collection_path}/joe</D:href>", "")
     prop_value="<D:group-member-set xmlns:D='DAV:'>"
     prop_value << expected
     prop_value << "</D:group-member-set>"

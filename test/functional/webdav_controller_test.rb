@@ -110,7 +110,7 @@ EOS
     <D:href>/</D:href> 
     <D:propstat> 
       <D:prop>
-        <D:displayname>Root Collection</D:displayname>
+        <D:displayname xmlns:D='DAV:'>Root Collection</D:displayname>
       </D:prop> 
       <D:status>HTTP/1.1 200 OK</D:status> 
     </D:propstat>
@@ -280,7 +280,7 @@ EOS
     <D:href>#{@foopath}</D:href> 
     <D:propstat> 
       <D:prop>
-        <D:displayname>Foo Bar</D:displayname>
+        <D:displayname xmlns:D='DAV:'>Foo Bar</D:displayname>
       </D:prop> 
       <D:status>HTTP/1.1 200 OK</D:status> 
     </D:propstat>
@@ -303,7 +303,7 @@ EOS
     <D:href>#{r.url}</D:href> 
     <D:propstat> 
       <D:prop>
-        <D:displayname>#{n}</D:displayname>
+        <D:displayname xmlns:D='DAV:'>#{n}</D:displayname>
       </D:prop> 
       <D:status>HTTP/1.1 200 OK</D:status> 
     </D:propstat>
@@ -480,12 +480,16 @@ EOS
   end
 
   def test_proppatch_dead_set
+
+    # MAJOR HACK AND BREAKAGE!
+    # there should be no need to declare Z: twice!
+
     @request.body = <<EOS
 <?xml version="1.0" encoding="utf-8" ?>
 <D:propertyupdate xmlns:D="DAV:" xmlns:Z="http://www.w3.com/standards/z39.50/">
   <D:set>
     <D:prop>
-      <Z:authors>
+      <Z:authors xmlns:Z="http://www.w3.com/standards/z39.50/">
         <Z:Author>Jim Whitehead</Z:Author>
         <Z:Author>Roy Fielding</Z:Author>
       </Z:authors>
@@ -513,7 +517,7 @@ EOS
 
     pk_authors = PropKey.get('http://www.w3.com/standards/z39.50/', 'authors')
     expected = <<EOS
-<Z:authors>
+<Z:authors xmlns:Z="http://www.w3.com/standards/z39.50/">
   <Z:Author>Jim Whitehead</Z:Author>
   <Z:Author>Roy Fielding</Z:Author>
 </Z:authors>
@@ -528,7 +532,7 @@ EOS
 <D:propertyupdate xmlns:D="DAV:">
   <D:set>
     <D:prop>
-      <D:displayname>new name for foo</D:displayname>
+      <D:displayname xmlns:D='DAV:'>new name for foo</D:displayname>
     </D:prop>
   </D:set>
 </D:propertyupdate>
@@ -561,7 +565,7 @@ EOS
   <D:set>
     <D:prop>
       <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Title for Dublin Core</dc:title>
-      <D:displayname>Display name for Dav</D:displayname>
+      <D:displayname xmlns:D='DAV:'>Display name for Dav</D:displayname>
     </D:prop>
   </D:set>
 </D:propertyupdate>
@@ -634,7 +638,7 @@ EOS
   <D:set>
     <D:prop>
       <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Title for Dublin Core</dc:title>
-      <D:displayname>Display name for Dav</D:displayname>
+      <D:displayname xmlns:D='DAV:'>Display name for Dav</D:displayname>
     </D:prop>
   </D:set>
   <D:remove>
@@ -888,7 +892,7 @@ EOS
     <D:prop>
       <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Title for Dublin Core</dc:title>
       <N:randomname1 xmlns:N="randomns1">newvalue</N:randomname1>
-      <D:displayname>my new displayname</D:displayname>
+      <D:displayname xmlns:D='DAV:'>my new displayname</D:displayname>
       <D:getetag>"iwishicouldchangemyetag"</D:getetag>
     </D:prop>
   </D:set>
@@ -1472,7 +1476,7 @@ EOS
         </D:lockentry>
       </D:supportedlock>
       <D:source/>
-      <D:displayname>#{resource.displayname}</D:displayname>
+      <D:displayname xmlns:D='DAV:'>#{resource.displayname}</D:displayname>
       <D:lockdiscovery>
       </D:lockdiscovery>
       <D:creationdate>#{resource.created_at.httpdate}</D:creationdate>

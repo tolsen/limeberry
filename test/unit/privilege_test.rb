@@ -120,7 +120,7 @@ class PrivilegeTest < DavUnitTestCase
        write write-properties write-content bind unbind write-acl unlock].each do |priv|
       out = ""
       Privilege.send('priv_' + priv).elem(Builder::XmlMarkup.new(:target => out))
-      exp_out = "<D:privilege><D:"+priv+"/></D:privilege>"
+      exp_out = "<D:privilege xmlns:D='DAV:'><D:"+priv+"/></D:privilege>"
       assert_rexml_equal exp_out, out
     end
   end
@@ -243,7 +243,7 @@ class PrivilegeTest < DavUnitTestCase
     end
 
     expected = <<EOS
-<D:supported-privilege>
+<D:supported-privilege xmlns:D='DAV:'>
   <D:privilege><D:all/></D:privilege>
   <D:description xml:lang="en">#{Privilege.priv_all.description}</D:description>
   <D:supported-privilege>

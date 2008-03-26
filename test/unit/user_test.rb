@@ -83,7 +83,7 @@ class UserTest < DavUnitTestCase
     out = ""
     xml = Builder::XmlMarkup.new(:target => out)
     @joe.principal_url(xml)
-    assert_equal("<D:href>#{User::USERS_COLLECTION_PATH}/joe</D:href>", out)
+    assert_equal("<D:href xmlns:D=\"DAV:\">#{User::USERS_COLLECTION_PATH}/joe</D:href>", out)
   end
 
   def test_password
