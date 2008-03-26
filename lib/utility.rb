@@ -144,15 +144,28 @@ module Utility
     end
 
 
-    XML_FORMATTER = REXML::Formatters::Default.new unless defined? XML_FORMATTER
-    
-    # node: REXML node
-    def xml_print node
-      output = ''
-      XML_FORMATTER.write node, output
-      return output
+    if (REXML::VERSION.split('.') <=> "3.1.7.1".split('.')) >= 0
+
+      XML_FORMATTER = REXML::Formatters::Default.new unless defined? XML_FORMATTER
+      
+      # node: REXML node
+      def xml_print node
+        output = ''
+        XML_FORMATTER.write node, output
+        return output
+      end
+
+    else
+
+      def xml_print node
+        output = ''
+        node.write output
+        return output
+      end
+
     end
     
+      
   end
 
 end
