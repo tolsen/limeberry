@@ -28,7 +28,7 @@ require 'rexml/document'
 require "test/test_helper"
 require "test/integration/dav_integration_test.rb"
 
-require 'test/xml'
+require 'inspector'
 
 class LockIntegrationTest < DavIntegrationTestCase  
 

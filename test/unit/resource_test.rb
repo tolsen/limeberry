@@ -29,7 +29,7 @@ require 'test/unit/dav_unit_test'
 require 'errors'
 require 'if_header'
 
-require 'test/xml'
+require 'inspector'
 
 class ResourceTest < DavUnitTestCase
 
