@@ -28,7 +28,7 @@ Installation
          2. LIMEBERRY_DEV_USER, LIMEBERRY_TEST_USER, or LIMEBERRY_PROD_USER: database user
          3. LIMEBERRY_DEV_PASS, LIMEBERRY_TEST_PASS, or LIMEBERRY_PROD_PASS: password for the database user
          4. LIMEBERRY_DEV_HOST, LIMEBERRY_TEST_HOST, or LIMEBERRY_PROD_HOST: hostname of the database server 
-   5. Check out the LimeBerry code: svn co http://svn.limedav.com/svn/limedav/limeberry/trunk limeberry
+   5. Check out the LimeBerry code: git clone git://github.com/tolsen/limeberry
    6. Change to the limeberry directory: cd limeberry
    7. Drop and recreate the database tables: rake db:reset
    8. Run the tests: rake
