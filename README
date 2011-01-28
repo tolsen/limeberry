@@ -1,11 +1,65 @@
 LimeBerry is a prototype of an advanced WebDAV server written in Ruby
-on Rails.
+on Rails.  LimeBerry currently implements the WebDAV and Access
+Control RFCs, as well as the BIND draft. Support for the DeltaV and
+Quota & Size RFCs is currently incomplete.
+
+At this time, LimeBerry is almost 4 years old and is experiencing
+major code rot.  LimeBerry once worked with Rails 1.2.  Some work
+would need to be done to get it to work with the latest Rails and
+gems.
 
 General Software Requirements: xdelta, mysql server & client
 
 Gem Requirements: mysql, rake, shared-mime-info, uuidtools
 
 Gem Conflicts: httpauth
+
+Installation
+
+   1. Install the following software:
+          *  xdelta library
+          *  MySQL server & client
+          *  Ruby
+          *  Ruby Gems 
+   2. Install required gems: gem install mysql rake shared-mime-info uuidtools mongrel
+   3. We use our own modified httpauth library. Make sure the httpauth gem is not installed: gem uninstall httpauth
+   4. You will need two to three databases - one development, one test, and a production database if desired. For each database, you will need to set four environment variables:
+         1. LIMEBERRY_DEV_DB, LIMEBERRY_TEST_DB, or LIMEBERRY_PROD_DB: database name
+         2. LIMEBERRY_DEV_USER, LIMEBERRY_TEST_USER, or LIMEBERRY_PROD_USER: database user
+         3. LIMEBERRY_DEV_PASS, LIMEBERRY_TEST_PASS, or LIMEBERRY_PROD_PASS: password for the database user
+         4. LIMEBERRY_DEV_HOST, LIMEBERRY_TEST_HOST, or LIMEBERRY_PROD_HOST: hostname of the database server 
+   5. Check out the LimeBerry code: svn co http://svn.limedav.com/svn/limedav/limeberry/trunk limeberry
+   6. Change to the limeberry directory: cd limeberry
+   7. Drop and recreate the database tables: rake db:reset
+   8. Run the tests: rake
+   9. Start mongrel (defaults to port 3000): mongrel_rails start 
+
+Adding Users
+
+$ ./script/console 
+Loading development environment.
+>> User.make :name => 'tim', :password => 'swordfish'
+=> #<User id: 17, uuid: "720f0069ea314cddb913b72b74c653fb", created_at: "2007-10-05 20:53:38", displayname: "", comment: "", type: "User", owner_id: 17, creator_id: 1, lock_version: 1>
+>> exit
+$ 
+
+Sample Session with  Cadaver
+
+$ cadaver http://localhost:3000/home/tim
+Authentication required for users@limedav.com on server `localhost':
+Username: tim
+Password: 
+dav:/home/tim/> ls
+Listing collection `/home/tim/': collection is empty.
+dav:/home/tim/> put timmay.gif
+Uploading timmay.gif to `/home/tim/timmay.gif':
+Progress: [=============================>] 100.0% of 1 bytes succeeded.
+dav:/home/tim/> ls
+Listing collection `/home/tim/': succeeded.
+        timmay.gif                          5794  Oct  5 16:55
+dav:/home/tim/> exit
+Connection to `localhost' closed.
+
 
 
 Lime Berry is the result of the hard work of many contributors.
